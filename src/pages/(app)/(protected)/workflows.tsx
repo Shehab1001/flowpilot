@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { Button, Card } from '@heroui/react'
 import {
   Activity, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Code2, Database,
   GitBranch, Globe2, Loader2, Plus, RefreshCw, Search, Trash2, Workflow as WorkflowIcon, X,
@@ -115,7 +116,7 @@ export default function WorkflowsPage() {
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Workflow studio</h1>
             <p className="mt-2 text-sm text-slate-400">Design, organize and manage your automations in one place.</p>
           </div>
-          <button className={primary} onClick={() => setCreateOpen(true)}><Plus size={17}/> New workflow</button>
+          <Button variant="primary" className="rounded-xl bg-indigo-500 font-semibold text-white hover:bg-indigo-400" onPress={() => setCreateOpen(true)}><Plus size={17}/> New workflow</Button>
         </header>
 
         {error && <div role="alert" className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError('')}><X size={16}/></button></div>}
@@ -128,7 +129,7 @@ export default function WorkflowsPage() {
         </section>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-          <section className={panel + ' overflow-hidden'}>
+          <Card className={panel + ' overflow-hidden'}>
             <div className="border-b border-white/10 p-5">
               <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">Your workflows</h2><button className={secondary + ' !px-2 !py-2'} aria-label="Refresh workflows" disabled={loading} onClick={() => void refresh()}><RefreshCw size={16} className={loading ? 'animate-spin' : ''}/></button></div>
               <div className="relative mt-4"><Search size={17} className="absolute left-3 top-3 text-slate-500"/><input aria-label="Search workflows" className={field + ' !py-2.5 !pl-10'} placeholder="Search workflows..." value={search} onChange={e => setSearch(e.target.value)}/></div>
@@ -144,9 +145,9 @@ export default function WorkflowsPage() {
                   </button>
                 ))}
             </div>
-          </section>
+          </Card>
 
-          <section className={panel + ' min-h-[410px] p-5 sm:p-6'}>
+          <Card className={panel + ' min-h-[410px] p-5 sm:p-6'}>
             {!current ? <Empty icon={<GitBranch size={30}/>} title="Select a workflow" description="Choose a workflow to view and edit its steps."/> : (
               <>
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -172,7 +173,7 @@ export default function WorkflowsPage() {
                 )}
               </>
             )}
-          </section>
+          </Card>
         </div>
 
         <p className="mt-8 flex items-center gap-2 text-xs text-slate-500"><CheckCircle2 size={14}/> Connected to DeepSpace authenticated server actions <ArrowRight size={14}/> Workflow execution is not enabled yet.</p>
@@ -199,7 +200,7 @@ export default function WorkflowsPage() {
 }
 
 function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
-  return <div className={panel + ' flex items-center gap-4 p-5'}><div className="rounded-xl bg-indigo-500/10 p-3 text-indigo-400">{icon}</div><div><p className="text-xs text-slate-400">{label}</p><p className="mt-1 text-2xl font-bold tabular-nums">{value}</p></div></div>
+  return <Card className={panel + ' flex items-center gap-4 p-5'}><div className="rounded-xl bg-indigo-500/10 p-3 text-indigo-400">{icon}</div><div><p className="text-xs text-slate-400">{label}</p><p className="mt-1 text-2xl font-bold tabular-nums">{value}</p></div></Card>
 }
 function Loading({ label }: { label: string }) {
   return <div role="status" className="flex items-center justify-center gap-3 p-14 text-sm text-slate-400"><Loader2 size={19} className="animate-spin"/>{label}</div>
