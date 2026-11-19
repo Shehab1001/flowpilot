@@ -10,6 +10,27 @@ import { prerender } from './prerender.ts'
 const appDir = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
+  // Local-only, fixed-target routes for the Worker HTTPS development fallback.
+  // No arbitrary destination URLs and no insecure TLS verification.
+  server: {
+    proxy: {
+      '/__flowpilot_dev_jsonplaceholder': {
+        target: 'https://jsonplaceholder.typicode.com',
+        changeOrigin: true,
+        secure: true,
+        followRedirects: false,
+        rewrite: path => path.slice('/__flowpilot_dev_jsonplaceholder'.length),
+      },
+      '/__flowpilot_dev_github': {
+        target: 'https://api.github.com',
+        changeOrigin: true,
+        secure: true,
+        followRedirects: false,
+        headers: { 'User-Agent': 'FlowPilot-Local-Development' },
+        rewrite: path => path.slice('/__flowpilot_dev_github'.length),
+      },
+    },
+  },
   plugins: [
     react(),
     generouted(),
