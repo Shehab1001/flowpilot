@@ -26,6 +26,16 @@ describe('executeSteps', () => {
     expect(summarizeExecution(execution).stepsJson).toContain('transform')
   })
 
+  it('executes a node with DeepSpace native JSON object config', async () => {
+    const mock = vi.fn(async () => jsonResponse({ title: 'Native JSON' }))
+    const execution = await executeSteps([
+      { recordId: 'fetch', data: { label: 'Fetch', position: 0, type: 'http_get', config: { url: 'https://jsonplaceholder.typicode.com/todos/1' } } },
+      { recordId: 'extract', data: { label: 'Extract', position: 1, type: 'json_transform', config: { field: 'title' } } },
+    ], mock as unknown as typeof fetch)
+    expect(execution.status).toBe('success')
+    expect(execution.output).toBe('Native JSON')
+  })
+
   it('blocks non-allowlisted endpoints without calling fetch', async () => {
     const mock = vi.fn()
     const result = await executeSteps([step('unsafe', 0, 'http_get', { url: 'http://127.0.0.1/admin' })], mock)
