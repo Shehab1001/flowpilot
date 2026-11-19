@@ -216,9 +216,9 @@ export default function WorkflowsPage() {
                 <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.025] px-4 py-3">
                   <label htmlFor="workflow-status" className="text-sm text-neutral-400">Status</label>
                   <select id="workflow-status" className={field + ' !w-auto !py-2'} disabled={busy} value={current.data.status} onChange={e => void mutate(() => callWorkflowAction('updateWorkflow', { workflowId: current.recordId, status: e.target.value }), 'Status updated.')}>
-                    <option value="draft">Draft</option><option value="active">Active (definition only)</option><option value="paused">Paused</option>
+                    <option value="draft">Draft</option><option value="active">Active</option><option value="paused">Paused</option>
                   </select>
-                  <span className="ml-auto text-xs text-neutral-500">Manual execution available below</span>
+                  <span className="ml-auto text-xs text-neutral-500">Runs are manual; no scheduling yet</span>
                 </div>
                 <div className="mt-7 flex items-center justify-between gap-3"><div><h3 className="font-semibold">Workflow steps</h3><p className="mt-1 text-xs text-neutral-500">Build your pipeline, one step at a time</p></div><button className={secondary} onClick={() => openStepEditor()}><Plus size={16}/> Add step</button></div>
                 {stepsLoading ? <Loading label="Loading steps..." /> : (
