@@ -1,5 +1,5 @@
 /**
- * Top nav — minimal placeholder bar wired to the app's mechanisms:
+ * Navigation — responsive FlowPilot sidebar wired to the app mechanisms:
  * nav.ts-driven links (with role/dev filtering), sign-in via <AuthOverlay>,
  * and sign-out. Restyle or rebuild it freely; keep the data-testid hooks
  * (`app-navigation`, `nav-sign-in-button`, `nav-user-name`, `nav-user-email`)
@@ -75,7 +75,7 @@ export default function Navigation() {
         <div className="flex h-18 items-center justify-between border-b border-white/[0.08] px-5 py-4">
           <Link to="/home" className="flex items-center gap-3">
             <span className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-400 via-violet-500 to-purple-700 shadow-lg shadow-indigo-500/20"><Zap className="size-5 text-white" fill="currentColor" aria-hidden /></span>
-            <span className="flex flex-col"><span className="text-base font-bold tracking-tight">${APP_NAME}</span><span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Automation hub</span></span>
+            <span className="flex flex-col"><span className="text-base font-bold tracking-tight">{APP_NAME}</span><span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Automation hub</span></span>
           </Link>
           <button className="rounded-lg p-2 text-slate-400 hover:bg-white/5 md:hidden" onClick={() => setMobileMenuOpen(prev => !prev)} aria-label="Toggle menu" aria-expanded={mobileMenuOpen}>{mobileMenuOpen ? <X size={20}/> : <Menu size={20}/>}</button>
         </div>
