@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Button, Card, Chip, Input, Label, Modal as HeroModal, TextArea, TextField } from '@heroui/react'
 import WorkflowCanvas from '../../../components/WorkflowCanvas'
 import {
-  Activity, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Database, Sparkles,
+  Activity, ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Database, Sparkles,
   GitBranch, Loader2, Plus, RefreshCw, Search, Trash2, Workflow as WorkflowIcon, X,
 } from 'lucide-react'
 import {
@@ -42,7 +42,7 @@ export default function WorkflowsPage() {
     try {
       const result = await fetchWorkflows()
       setWorkflows(result.records)
-      setSelected(current => current && result.records.some(row => row.recordId === current) ? current : result.records[0]?.recordId ?? null)
+      setSelected(current => current && result.records.some(row => row.recordId === current) ? current : null)
       setError('')
     } catch (err) { setError(message(err)) }
     finally { setLoading(false) }
@@ -82,7 +82,7 @@ export default function WorkflowsPage() {
   }
   async function createWorkflow(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const ok = await mutate(() => callWorkflowAction('createWorkflow', { name, description }), 'Workflow created successfully.')
+    const ok = await mutate(() => callWorkflowAction('createWorkflow', { name, description }), 'Workflow created successfully. Select it from the list to open the editor.')
     if (ok) { setCreateOpen(false); setName(''); setDescription('') }
   }
   function openStepEditor(step?: RecordWithId<WorkflowStep>) {
@@ -144,17 +144,25 @@ export default function WorkflowsPage() {
           <Metric icon={<CirclePause size={21}/>} label="Draft & paused" value={workflows.length - active} />
         </section>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+        {!current ? (
+          <section aria-label="All workflows" className="space-y-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">Your workflows</h2>
+                <p className="mt-1 text-sm text-neutral-400">Choose a workflow to open its dedicated editor.</p>
+              </div>
+              <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-neutral-400">{workflows.length} workflows</span>
+            </div>
           <Card className={panel + ' overflow-hidden'}>
             <div className="border-b border-white/[0.07] p-5 sm:p-6">
-              <div className="flex items-center justify-between"><div><h2 className="text-base font-semibold">Your workflows</h2><p className="mt-1 text-xs text-neutral-500">Select a workflow to manage</p></div><button className={secondary + ' !px-2 !py-2'} aria-label="Refresh workflows" disabled={loading} onClick={() => void refresh()}><RefreshCw size={16} className={loading ? 'animate-spin' : ''}/></button></div>
+              <div className="flex items-center justify-between"><div><h2 className="text-base font-semibold">Browse and search</h2><p className="mt-1 text-xs text-neutral-500">Your saved automations</p></div><button className={secondary + ' !px-2 !py-2'} aria-label="Refresh workflows" disabled={loading} onClick={() => void refresh()}><RefreshCw size={16} className={loading ? 'animate-spin' : ''}/></button></div>
               <div className="relative mt-4"><Search size={17} className="absolute left-3 top-3 text-neutral-500"/><input aria-label="Search workflows" className={field + ' !py-2.5 !pl-10'} placeholder="Search workflows..." value={search} onChange={e => setSearch(e.target.value)}/></div>
             </div>
-            <div className="max-h-[620px] space-y-2 overflow-y-auto p-3 sm:p-4">
+            <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-3">
               {loading ? <Loading label="Loading workflows..." /> : filtered.length === 0
                 ? <Empty icon={<Database size={26}/>} title={search ? 'No matching workflows' : 'No workflows yet'} description={search ? 'Try another search term.' : 'Create your first workflow to start building.'}/>
                 : filtered.map(w => (
-                  <button key={w.recordId} onClick={() => setSelected(w.recordId)} className={`w-full rounded-xl border p-4 text-left transition-colors ${selected === w.recordId ? 'border-indigo-400/40 bg-gradient-to-r from-indigo-500/15 to-violet-500/[0.04] shadow-[inset_3px_0_0_#818cf8]' : 'border-white/[0.04] bg-white/[0.018] hover:border-white/15 hover:bg-white/[0.045]'}`}>
+                  <button key={w.recordId} onClick={() => setSelected(w.recordId)} className={`min-h-32 w-full rounded-2xl border p-5 text-left transition-colors ${selected === w.recordId ? 'border-indigo-400/40 bg-gradient-to-r from-indigo-500/15 to-violet-500/[0.04] shadow-[inset_3px_0_0_#818cf8]' : 'border-white/[0.04] bg-white/[0.018] hover:border-white/15 hover:bg-white/[0.045]'}`}>
                     <div className="flex items-center justify-between gap-3"><span className="truncate font-semibold">{w.data.name}</span><ChevronRight size={17} className="shrink-0 text-neutral-500"/></div>
                     <p className="mt-2 line-clamp-2 text-xs text-neutral-400">{w.data.description || 'No description provided.'}</p>
                     <Chip size="sm" variant="soft" color={w.data.status === "active" ? "success" : w.data.status === "paused" ? "warning" : "default"} className="mt-3 capitalize">{w.data.status}</Chip>
@@ -163,11 +171,21 @@ export default function WorkflowsPage() {
             </div>
           </Card>
 
-          <Card className={panel + ' min-h-[410px] p-5 sm:p-6'}>
+
+          </section>
+        ) : (
+          <section aria-label="Workflow editor" className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <button type="button" className={secondary} onClick={() => { setSelected(null); setStepOpen(false) }}>
+                <ArrowLeft size={16}/> All workflows
+              </button>
+              <span className="rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-300">Workflow editor · full workspace</span>
+            </div>
+          <Card className={panel + ' min-h-[calc(100vh-250px)] p-5 sm:p-7'}>
             {!current ? <Empty icon={<GitBranch size={30}/>} title="Select a workflow" description="Choose a workflow to view and edit its steps."/> : (
               <>
                 <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/[0.06] pb-6">
-                  <div className="min-w-0"><p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-indigo-400"><GitBranch size={14}/> Workflow details</p><h2 className="mt-2 break-words text-2xl font-bold">{current.data.name}</h2><p className="mt-2 text-sm text-neutral-400">{current.data.description || 'Add automation steps to this workflow.'}</p></div>
+                  <div className="min-w-0 flex-1"><p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-indigo-400"><GitBranch size={14}/> Workflow details</p><h2 className="mt-2 break-words text-2xl font-bold">{current.data.name}</h2><p className="mt-2 text-sm text-neutral-400">{current.data.description || 'Add automation steps to this workflow.'}</p></div>
                   <button aria-label="Delete workflow" title="Delete workflow" className={secondary + ' !px-3 text-rose-400 hover:text-rose-300'} disabled={busy} onClick={() => { if (window.confirm('Delete this workflow and all its steps? This cannot be undone.')) void mutate(() => callWorkflowAction('deleteWorkflow', { workflowId: current.recordId }), 'Workflow deleted.') }}><Trash2 size={17}/></button>
                 </div>
                 <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.025] px-4 py-3">
@@ -194,7 +212,8 @@ export default function WorkflowsPage() {
               </>
             )}
           </Card>
-        </div>
+          </section>
+        )}
 
         <p className="mt-8 flex flex-wrap items-center gap-2 text-xs text-neutral-500"><CheckCircle2 size={14}/> Connected to DeepSpace authenticated server actions <ArrowRight size={14}/> Workflow execution is not enabled yet.</p>
       </div>
