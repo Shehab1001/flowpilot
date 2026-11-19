@@ -3,9 +3,9 @@ import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { executeSteps, summarizeExecution, type ExecutableStep } from './execution-engine'
 
-type Workflow = { ownerId: string; name: string; status: string }
-type StepData = { ownerId: string; workflowId: string; label: string; type: 'http_get' | 'json_transform'; position: number; config: string }
-type RunData = {
+type Workflow = Record<string, unknown> & { ownerId: string; name: string; status: string }
+type StepData = Record<string, unknown> & { ownerId: string; workflowId: string; label: string; type: 'http_get' | 'json_transform'; position: number; config: string }
+type RunData = Record<string, unknown> & {
   ownerId: string; workflowId: string; status: string; startedAt: string;
   durationMs: number; error: string; stepsJson: string; outputJson: string
 }
