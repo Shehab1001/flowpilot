@@ -7,7 +7,7 @@ type Workflow = Record<string, unknown> & { ownerId: string; name: string; statu
 type StepData = Record<string, unknown> & { ownerId: string; workflowId: string; label: string; type: 'http_get' | 'json_transform'; position: number; config: string }
 type RunData = Record<string, unknown> & {
   ownerId: string; workflowId: string; status: string; startedAt: string;
-  durationMs: number; error: string; stepsJson: string; outputJson: string
+  durationMs: number; error: string; stepsJson: unknown; outputJson: string
 }
 const bad = (error: string) => ({ success: false as const, error })
 const isId = (x: unknown): x is string => typeof x === 'string' && x.length > 0 && x.length <= 128 && /^[a-zA-Z0-9_-]+$/.test(x)
@@ -36,7 +36,7 @@ const runWorkflow: ActionHandler<Env> = async ({ params, tools, userId }) => {
   const record: RunData = {
     ownerId: userId, workflowId: owned.id, status: execution.status,
     startedAt, durationMs: execution.durationMs, error: execution.error,
-    stepsJson: summary.stepsJson, outputJson: summary.outputJson,
+    stepsJson: JSON.parse(summary.stepsJson) as unknown, outputJson: summary.outputJson,
   }
   const stored = await tools.create('workflow_runs', record)
   if (!stored.success) return stored
