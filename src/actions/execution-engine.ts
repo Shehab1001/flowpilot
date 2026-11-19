@@ -1,10 +1,11 @@
+import { stepConfigObject } from '../lib/stored-json'
 /**
  * Sequential workflow execution. No arbitrary user URLs, JS evaluation or redirects.
  * Only explicitly allowlisted HTTPS hosts can be called.
  */
 export type ExecutableStep = {
   recordId: string
-  data: { label: string; type: 'http_get' | 'json_transform'; position: number; config: string }
+  data: { label: string; type: 'http_get' | 'json_transform'; position: number; config: unknown }
 }
 
 export type StepExecution = {
@@ -39,11 +40,9 @@ function safeUrl(raw: unknown): URL {
 }
 
 function parseConfig(step: ExecutableStep): Record<string, unknown> {
-  let value: unknown
-  try { value = JSON.parse(step.data.config) } catch { throw new Error('Invalid step configuration') }
-  if (!value || typeof value !== 'object' || Array.isArray(value))
-    throw new Error('Invalid step configuration')
-  return value as Record<string, unknown>
+  const value = stepConfigObject(step.data.config)
+  if (!value) throw new Error('Invalid step configuration')
+  return value
 }
 
 async function readLimitedJson(response: Response): Promise<unknown> {
