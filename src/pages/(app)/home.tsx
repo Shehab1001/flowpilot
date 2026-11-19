@@ -5,7 +5,7 @@ import { useAuthProfileReady } from 'deepspace'
 export default function HomePage() {
   const { isSignedIn, user } = useAuthProfileReady({ requireUser: true })
   return (
-    <main className="flex min-h-full items-center justify-center bg-[#0b1020] px-6 py-16 text-slate-100">
+    <main className="flex min-h-full items-center justify-center bg-[#262626] px-6 py-16 text-slate-100">
       <div className="w-full max-w-3xl text-center">
         <span className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-xs font-semibold tracking-widest text-indigo-300">
           <GitBranch size={14}/> FLOWPILOT / WORKFLOW STUDIO
@@ -22,8 +22,8 @@ export default function HomePage() {
           Open workflow studio <ArrowRight size={17}/>
         </Link>
         <div className="mt-14 grid gap-4 text-left sm:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-[#151b2b] p-6"><Layers3 size={24} className="text-indigo-400"/><h2 className="mt-4 font-semibold">Build workflow definitions</h2><p className="mt-2 text-sm leading-relaxed text-slate-400">Add HTTP GET and JSON field selection steps to each workflow.</p></div>
-          <div className="rounded-2xl border border-white/10 bg-[#151b2b] p-6"><LockKeyhole size={24} className="text-indigo-400"/><h2 className="mt-4 font-semibold">Your data, your workspace</h2><p className="mt-2 text-sm leading-relaxed text-slate-400">Authenticated DeepSpace actions validate ownership before editing records.</p></div>
+          <div className="rounded-2xl border border-white/10 bg-[#323232] p-6"><Layers3 size={24} className="text-indigo-400"/><h2 className="mt-4 font-semibold">Build workflow definitions</h2><p className="mt-2 text-sm leading-relaxed text-slate-400">Add HTTP GET and JSON field selection steps to each workflow.</p></div>
+          <div className="rounded-2xl border border-white/10 bg-[#323232] p-6"><LockKeyhole size={24} className="text-indigo-400"/><h2 className="mt-4 font-semibold">Your data, your workspace</h2><p className="mt-2 text-sm leading-relaxed text-slate-400">Authenticated DeepSpace actions validate ownership before editing records.</p></div>
         </div>
         <p className="mt-8 text-xs text-slate-500">Workflow execution and run history are planned for the next phase.</p>
       </div>
