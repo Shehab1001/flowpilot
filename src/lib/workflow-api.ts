@@ -51,6 +51,25 @@ export function fetchWorkflows() {
 export function fetchSteps(workflowId: string) {
   return callWorkflowAction<ListResult<WorkflowStep>>('listSteps', { workflowId })
 }
+export interface WorkflowRun {
+  ownerId: string
+  workflowId: string
+  status: 'success' | 'failed'
+  startedAt: string
+  durationMs: number
+  error: string
+  stepsJson: string
+  outputJson: string
+}
+
+export function fetchRuns(workflowId: string) {
+  return callWorkflowAction<ListResult<WorkflowRun>>('listRuns', { workflowId })
+}
+
+export function runWorkflow(workflowId: string) {
+  return callWorkflowAction<WorkflowRun & { recordId: string }>('runWorkflow', { workflowId })
+}
+
 export function decodeStepConfig(step: WorkflowStep): string {
   try {
     const config = JSON.parse(step.config) as Record<string, unknown>
