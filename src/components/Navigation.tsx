@@ -90,72 +90,7 @@ export default function Navigation() {
             </div>
           </div>
         </div>
-        <div className="hidden border-t border-white/[0.08] p-3 md:block">
-          {!isLoaded ? null : isSignedIn && !profileReady ? (
-            /* Signed in, profile still loading — skeleton pill, never the
-               Sign in button (that would offer sign-in to a signed-in user). */
-            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] py-1 pl-1 pr-2.5">
-              <div className="h-6 w-6 animate-pulse rounded-full bg-muted" />
-              <div className="hidden h-4 w-20 animate-pulse rounded-md bg-muted sm:block" />
-            </div>
-          ) : isSignedIn && user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <button
-                    aria-label="Account menu"
-                    className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] py-1 pl-1 pr-2.5 text-sm transition-colors hover:bg-white/[0.08]"
-                  >
-                    <Avatar className="h-6 w-6 ring-1 ring-inset ring-border">
-                      <AvatarImage src={user.imageUrl ?? undefined} referrerPolicy="no-referrer" />
-                      <AvatarFallback className="text-[11px]">
-                        {(user.name?.[0] ?? user.email?.[0] ?? '?').toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span
-                      data-testid="nav-user-name"
-                      className="hidden max-w-[140px] truncate text-slate-100 sm:inline"
-                    >
-                      {user.name || user.email}
-                    </span>
-                    <ChevronDown
-                      className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-150 group-data-[popup-open]:rotate-180"
-                      aria-hidden
-                    />
-                  </button>
-                }
-              />
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="truncate font-medium text-slate-100">
-                    {user.name || 'Signed in'}
-                  </div>
-                  <div
-                    data-testid="nav-user-email"
-                    className="truncate text-xs font-normal text-muted-foreground"
-                  >
-                    {user.email}
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut()}>
-                  <LogOut aria-hidden />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <button
-              data-testid="nav-sign-in-button"
-              onClick={() => setShowAuthModal(true)}
-              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
-            >
-              Sign in
-            </button>
-          )}
-
-        </div>
-        <div className={`${mobileMenuOpen ? 'block' : 'hidden'} border-t border-white/10 p-3 md:hidden`}>
+        <div className={`${mobileMenuOpen ? 'block' : 'hidden'} border-t border-white/[0.08] p-3 md:block`}>
           {!isLoaded ? null : isSignedIn && !profileReady ? (
             /* Signed in, profile still loading — skeleton pill, never the
                Sign in button (that would offer sign-in to a signed-in user). */
