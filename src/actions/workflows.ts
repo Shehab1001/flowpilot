@@ -1,3 +1,4 @@
+import { stepConfigObject } from '../lib/stored-json'
 /**
  * FlowPilot authenticated actions.
  *
@@ -14,7 +15,7 @@ type WorkflowStep = Record<string, unknown> & {
   label: string
   type: 'http_get' | 'json_transform'
   position: number
-  config: string
+  config: unknown
 }
 
 const bad = (error: string) => ({ success: false as const, error })
@@ -45,7 +46,7 @@ async function ownedStep(tools: ActionTools, userId: string, stepId: unknown) {
   return { success: true as const, stepId, record: result.data.record }
 }
 
-function validateConfig(type: WorkflowStep['type'], value: unknown): string | null {
+function validateConfig(type: WorkflowStep['type'], value: unknown): Record<string, string> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const config = value as Record<string, unknown>
   if (type === 'http_get') {
@@ -59,13 +60,13 @@ function validateConfig(type: WorkflowStep['type'], value: unknown): string | nu
     if (/(^|\.)(localhost|local|internal|test|example|invalid)$/.test(url.hostname)) return null
     if (/^(\d+\.){3}\d+$/.test(url.hostname) || url.hostname.includes(':')) return null
     if (url.hostname.endsWith('.localhost') || url.hostname.endsWith('.onion')) return null
-    return JSON.stringify({ url: url.toString() })
+    return { url: url.toString() }
   }
   if (type === 'json_transform') {
     // Phase 1: a safe property picker, not arbitrary executable JavaScript.
     const field = text(config.field, 120)
     if (!field || !/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(field)) return null
-    return JSON.stringify({ field })
+    return { field }
   }
   return null
 }
@@ -199,9 +200,7 @@ const updateStep: ActionHandler<Env> = async ({ userId, params, tools }) => {
   if (params.type !== undefined || params.config !== undefined) {
     const type = params.type ?? step.record.data.type
     if (type !== 'http_get' && type !== 'json_transform') return bad('Unsupported step type')
-    const currentConfig = (() => {
-      try { return JSON.parse(step.record.data.config) as unknown } catch { return null }
-    })()
+    const currentConfig = stepConfigObject(step.record.data.config)
     const config = validateConfig(type, params.config ?? currentConfig)
     if (!config) return bad('Invalid step config')
     patch.type = type
