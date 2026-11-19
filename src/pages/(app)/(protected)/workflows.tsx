@@ -1,21 +1,16 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Button, Card, Input, Label, Modal as HeroModal, TextArea, TextField } from '@heroui/react'
+import { Button, Card, Chip, Input, Label, Modal as HeroModal, TextArea, TextField } from '@heroui/react'
 import {
   Activity, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Code2, Database, Sparkles,
   GitBranch, Globe2, Loader2, Plus, RefreshCw, Search, Trash2, Workflow as WorkflowIcon, X,
 } from 'lucide-react'
 import {
   callWorkflowAction, decodeStepConfig, fetchSteps, fetchWorkflows,
-  type StoredRecord, type StepType, type Workflow, type WorkflowStatus, type WorkflowStep,
+  type StoredRecord, type StepType, type Workflow, type WorkflowStep,
 } from '../../../lib/workflow-api'
 
 type RecordWithId<T> = StoredRecord<T>
 
-const statusStyles: Record<WorkflowStatus, string> = {
-  draft: 'border-slate-500/20 bg-slate-500/10 text-slate-400',
-  active: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-400',
-  paused: 'border-amber-500/25 bg-amber-500/10 text-amber-400',
-}
 const panel = 'rounded-[22px] border border-white/[0.075] bg-[#151b2b]/90 shadow-[0_14px_42px_-24px_rgba(0,0,0,0.65)] backdrop-blur-xl'
 const field = 'w-full rounded-xl border border-white/[0.09] bg-[#0e1422]/90 px-4 py-3 text-sm text-slate-100 outline-none ring-0 transition-all placeholder:text-slate-600 focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/10'
 const primary = 'inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50'
@@ -141,7 +136,7 @@ export default function WorkflowsPage() {
                   <button key={w.recordId} onClick={() => setSelected(w.recordId)} className={`w-full rounded-xl border p-4 text-left transition-colors ${selected === w.recordId ? 'border-indigo-400/40 bg-gradient-to-r from-indigo-500/15 to-violet-500/[0.04] shadow-[inset_3px_0_0_#818cf8]' : 'border-white/[0.04] bg-white/[0.018] hover:border-white/15 hover:bg-white/[0.045]'}`}>
                     <div className="flex items-center justify-between gap-3"><span className="truncate font-semibold">{w.data.name}</span><ChevronRight size={17} className="shrink-0 text-slate-500"/></div>
                     <p className="mt-2 line-clamp-2 text-xs text-slate-400">{w.data.description || 'No description provided.'}</p>
-                    <span className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize ${statusStyles[w.data.status] ?? statusStyles.draft}`}>{w.data.status}</span>
+                    <Chip size="sm" variant="soft" color={w.data.status === "active" ? "success" : w.data.status === "paused" ? "warning" : "default"} className="mt-3 capitalize">{w.data.status}</Chip>
                   </button>
                 ))}
             </div>
