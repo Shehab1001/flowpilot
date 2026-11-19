@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Button, Card, Chip, Input, Label, Modal as HeroModal, TextArea, TextField } from '@heroui/react'
+import WorkflowCanvas from '../../../components/WorkflowCanvas'
 import {
   Activity, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Code2, Database, Sparkles,
   GitBranch, Globe2, Loader2, Plus, RefreshCw, Search, Trash2, Workflow as WorkflowIcon, X,
@@ -29,6 +30,7 @@ export default function WorkflowsPage() {
   const [notice, setNotice] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [stepOpen, setStepOpen] = useState(false)
+  const [editingStep, setEditingStep] = useState<RecordWithId<WorkflowStep> | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [stepLabel, setStepLabel] = useState('')
@@ -83,19 +85,38 @@ export default function WorkflowsPage() {
     const ok = await mutate(() => callWorkflowAction('createWorkflow', { name, description }), 'Workflow created successfully.')
     if (ok) { setCreateOpen(false); setName(''); setDescription('') }
   }
-  async function createStep(event: FormEvent<HTMLFormElement>) {
+  function openStepEditor(step?: RecordWithId<WorkflowStep>) {
+    setEditingStep(step ?? null)
+    setStepLabel(step?.data.label ?? '')
+    setStepType(step?.data.type ?? 'http_get')
+    setStepConfig(step ? decodeStepConfig(step.data) : 'https://jsonplaceholder.typicode.com/todos/1')
+    setStepOpen(true)
+  }
+  async function saveStep(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!selected) return
-    const usedPositions = new Set(steps.map(item => item.data.position))
-    let position = 0
-    while (usedPositions.has(position)) position++
     const config = stepType === 'http_get' ? { url: stepConfig.trim() } : { field: stepConfig.trim() }
+    let params: Record<string, unknown>
+    let actionName: string
+    if (editingStep) {
+      actionName = 'updateStep'
+      params = { stepId: editingStep.recordId, label: stepLabel, type: stepType, config }
+    } else {
+      const usedPositions = new Set(steps.map(item => item.data.position))
+      let position = 0
+      while (usedPositions.has(position)) position++
+      if (position > 99 || steps.length >= 20) { setError('Maximum 20 steps per workflow'); return }
+      actionName = 'createStep'
+      params = { workflowId: selected, label: stepLabel, type: stepType, position, config }
+    }
     const ok = await mutate(
-      () => callWorkflowAction('createStep', { workflowId: selected, label: stepLabel, type: stepType, position, config }),
-      'Step added successfully.', true,
+      () => callWorkflowAction(actionName, params),
+      editingStep ? 'Step updated successfully.' : 'Step added successfully.',
+      true,
     )
-    if (ok) { setStepOpen(false); setStepLabel('') }
+    if (ok) { setStepOpen(false); setEditingStep(null); setStepLabel('') }
   }
+
   const current = workflows.find(w => w.recordId === selected)
   const filtered = workflows.filter(w => (w.data.name + ' ' + w.data.description).toLowerCase().includes(search.toLowerCase()))
   const active = workflows.filter(w => w.data.status === 'active').length
@@ -156,15 +177,19 @@ export default function WorkflowsPage() {
                   </select>
                   <span className="ml-auto text-xs text-neutral-500">Execution engine coming next</span>
                 </div>
-                <div className="mt-7 flex items-center justify-between gap-3"><div><h3 className="font-semibold">Workflow steps</h3><p className="mt-1 text-xs text-neutral-500">Build your pipeline, one step at a time</p></div><button className={secondary} onClick={() => { setStepOpen(true); setStepConfig('https://jsonplaceholder.typicode.com/todos/1') }}><Plus size={16}/> Add step</button></div>
-                {stepsLoading ? <Loading label="Loading steps..." /> : steps.length === 0 ? <Empty icon={<Code2 size={24}/>} title="No steps added" description="Start with an HTTP GET or JSON field selector."/> : (
-                  <div className="relative mt-6 space-y-3 before:absolute before:bottom-4 before:left-8 before:top-4 before:w-px before:bg-indigo-500/20">{steps.map((step, index) => (
-                    <div key={step.recordId} className="relative flex items-start gap-3 rounded-2xl border border-white/[0.08] bg-[#393939] p-4 shadow-[0_7px_20px_-14px_rgba(0,0,0,0.65)] transition-colors hover:border-indigo-400/25">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/15 text-xs font-bold text-indigo-300">{index + 1}</span>
-                      <div className="min-w-0 flex-1"><div className="flex items-center gap-2">{step.data.type === 'http_get' ? <Globe2 size={15} className="text-sky-400"/> : <Code2 size={15} className="text-violet-400"/>}<p className="truncate text-sm font-semibold">{step.data.label}</p></div><p className="mt-1 text-xs text-neutral-500">{step.data.type === 'http_get' ? 'HTTP GET' : 'JSON transform'}</p><p className="mt-2 truncate font-mono text-xs text-neutral-400">{decodeStepConfig(step.data)}</p></div>
-                      <button aria-label={`Delete ${step.data.label}`} className="text-neutral-500 transition-colors hover:text-rose-400" disabled={busy} onClick={() => { if (window.confirm('Delete this step?')) void mutate(() => callWorkflowAction('deleteStep', { stepId: step.recordId }), 'Step deleted.', true) }}><Trash2 size={16}/></button>
-                    </div>
-                  ))}</div>
+                <div className="mt-7 flex items-center justify-between gap-3"><div><h3 className="font-semibold">Workflow steps</h3><p className="mt-1 text-xs text-neutral-500">Build your pipeline, one step at a time</p></div><button className={secondary} onClick={() => openStepEditor()}><Plus size={16}/> Add step</button></div>
+                {stepsLoading ? <Loading label="Loading steps..." /> : (
+                  <WorkflowCanvas
+                    steps={steps}
+                    disabled={busy}
+                    onAdd={() => openStepEditor()}
+                    onEdit={openStepEditor}
+                    onDelete={step => {
+                      if (window.confirm(`Delete step "${step.data.label}"?`)) {
+                        void mutate(() => callWorkflowAction('deleteStep', { stepId: step.recordId }), 'Step deleted.', true)
+                      }
+                    }}
+                  />
                 )}
               </>
             )}
@@ -181,13 +206,13 @@ export default function WorkflowsPage() {
           <button type="submit" disabled={busy} className={primary + ' w-full'}>{busy ? <Loader2 size={16} className="animate-spin"/> : <Plus size={16}/>} Create workflow</button>
         </form>
       </FlowModal>}
-      {stepOpen && <FlowModal title="Add workflow step" onClose={() => setStepOpen(false)}>
-        <form className="space-y-4" onSubmit={e => void createStep(e)}>
+      {stepOpen && <FlowModal title={editingStep ? "Edit workflow step" : "Add workflow step"} onClose={() => setStepOpen(false)}>
+        <form className="space-y-4" onSubmit={e => void saveStep(e)}>
           <TextField className="space-y-2" isRequired value={stepLabel} onChange={setStepLabel}><Label className="text-sm font-medium text-neutral-200">Step name</Label><Input autoFocus className={field} maxLength={100} placeholder="e.g. Fetch sample data"/></TextField>
           <label className="block space-y-2 text-sm">Step type<select className={field} value={stepType} onChange={e => { const next = e.target.value as StepType; setStepType(next); setStepConfig(next === 'http_get' ? 'https://jsonplaceholder.typicode.com/todos/1' : 'title') }}><option value="http_get">HTTP GET</option><option value="json_transform">JSON field selector</option></select></label>
           <TextField className="space-y-2" isRequired value={stepConfig} onChange={setStepConfig}><Label className="text-sm font-medium text-neutral-200">{stepType === 'http_get' ? 'HTTPS URL' : 'JSON field name'}</Label><Input className={field} placeholder={stepType === 'http_get' ? 'https://api.github.com/users/octocat' : 'title'}/></TextField>
           <p className="text-xs leading-relaxed text-neutral-500">{stepType === 'http_get' ? 'Allowed hosts: api.github.com or jsonplaceholder.typicode.com.' : 'Select a single JSON property. Running steps will be added in the next phase.'}</p>
-          <button className={primary + ' w-full'} type="submit" disabled={busy}>{busy ? <Loader2 size={16} className="animate-spin"/> : <Plus size={16}/>} Add step</button>
+          <button className={primary + ' w-full'} type="submit" disabled={busy}>{busy ? <Loader2 size={16} className="animate-spin"/> : <Plus size={16}/>} {editingStep ? "Save changes" : "Add step"}</button>
         </form>
       </FlowModal>}
     </div>
