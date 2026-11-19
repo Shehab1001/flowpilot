@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Button, Card, Chip, Input, Label, Modal as HeroModal, TextArea, TextField } from '@heroui/react'
 import WorkflowCanvas from '../../../components/WorkflowCanvas'
 import {
-  Activity, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Code2, Database, Sparkles,
-  GitBranch, Globe2, Loader2, Plus, RefreshCw, Search, Trash2, Workflow as WorkflowIcon, X,
+  Activity, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Database, Sparkles,
+  GitBranch, Loader2, Plus, RefreshCw, Search, Trash2, Workflow as WorkflowIcon, X,
 } from 'lucide-react'
 import {
   callWorkflowAction, decodeStepConfig, fetchSteps, fetchWorkflows,
