@@ -123,6 +123,20 @@ const deleteWorkflow: ActionHandler<Env> = async ({ userId, params, tools }) => 
       if (!removed.success) return removed
     }
   }
+  // Remove the workflow's historical runs too; privileged actions must
+  // explicitly scope deletions to the authenticated owner.
+  for (;;) {
+    const page = await tools.query('workflow_runs', {
+      where: { workflowId: workflow.workflowId, ownerId: userId },
+      limit: 100,
+    })
+    if (!page.success) return page
+    if (page.data.records.length === 0) break
+    for (const run of page.data.records) {
+      const removed = await tools.remove('workflow_runs', run.recordId)
+      if (!removed.success) return removed
+    }
+  }
   return tools.remove('workflows', workflow.workflowId)
 }
 
