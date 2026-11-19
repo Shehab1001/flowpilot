@@ -78,7 +78,8 @@ export default function WorkflowsPage() {
     setNotice('')
     try {
       const run = await executeWorkflow(workflowId)
-      setNotice(run.status === 'success' ? 'Workflow completed successfully.' : 'Workflow failed. See execution history for details.')
+      if (run.status === 'success') setNotice('Workflow completed successfully.')
+      else setError(run.error || 'Workflow failed. See execution history for details.')
       await refreshRuns(workflowId)
     } catch (err) { setError(message(err)) }
     finally { setRunning(false) }
