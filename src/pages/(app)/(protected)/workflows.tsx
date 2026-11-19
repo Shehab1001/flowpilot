@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Button, Card } from '@heroui/react'
+import { Button, Card, Input, Label, Modal as HeroModal, TextArea, TextField } from '@heroui/react'
 import {
   Activity, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Code2, Database, Clock3, Sparkles,
   GitBranch, Globe2, Loader2, Plus, RefreshCw, Search, Trash2, Workflow as WorkflowIcon, X,
@@ -179,22 +179,22 @@ export default function WorkflowsPage() {
         <p className="mt-8 flex flex-wrap items-center gap-2 text-xs text-slate-500"><CheckCircle2 size={14}/> Connected to DeepSpace authenticated server actions <ArrowRight size={14}/> Workflow execution is not enabled yet.</p>
       </div>
 
-      {createOpen && <Modal title="Create workflow" onClose={() => setCreateOpen(false)}>
+      {createOpen && <FlowModal title="Create workflow" onClose={() => setCreateOpen(false)}>
         <form className="space-y-4" onSubmit={e => void createWorkflow(e)}>
-          <label className="block space-y-2 text-sm">Workflow name<input className={field} required maxLength={100} autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Weekly report automation"/></label>
-          <label className="block space-y-2 text-sm">Description<textarea className={field} maxLength={500} value={description} onChange={e => setDescription(e.target.value)} placeholder="What should this workflow do?" rows={3}/></label>
+          <TextField className="space-y-2" isRequired value={name} onChange={setName}><Label className="text-sm font-medium text-slate-200">Workflow name</Label><Input className={field} maxLength={100} autoFocus placeholder="e.g. Weekly report automation"/></TextField>
+          <TextField className="space-y-2" value={description} onChange={setDescription}><Label className="text-sm font-medium text-slate-200">Description</Label><TextArea className={field} maxLength={500} placeholder="What should this workflow do?" rows={3}/></TextField>
           <button type="submit" disabled={busy} className={primary + ' w-full'}>{busy ? <Loader2 size={16} className="animate-spin"/> : <Plus size={16}/>} Create workflow</button>
         </form>
-      </Modal>}
-      {stepOpen && <Modal title="Add workflow step" onClose={() => setStepOpen(false)}>
+      </FlowModal>}
+      {stepOpen && <FlowModal title="Add workflow step" onClose={() => setStepOpen(false)}>
         <form className="space-y-4" onSubmit={e => void createStep(e)}>
-          <label className="block space-y-2 text-sm">Step name<input autoFocus className={field} required maxLength={100} value={stepLabel} onChange={e => setStepLabel(e.target.value)} placeholder="e.g. Fetch sample data"/></label>
+          <TextField className="space-y-2" isRequired value={stepLabel} onChange={setStepLabel}><Label className="text-sm font-medium text-slate-200">Step name</Label><Input autoFocus className={field} maxLength={100} placeholder="e.g. Fetch sample data"/></TextField>
           <label className="block space-y-2 text-sm">Step type<select className={field} value={stepType} onChange={e => { const next = e.target.value as StepType; setStepType(next); setStepConfig(next === 'http_get' ? 'https://jsonplaceholder.typicode.com/todos/1' : 'title') }}><option value="http_get">HTTP GET</option><option value="json_transform">JSON field selector</option></select></label>
-          <label className="block space-y-2 text-sm">{stepType === 'http_get' ? 'HTTPS URL' : 'JSON field name'}<input required className={field} value={stepConfig} onChange={e => setStepConfig(e.target.value)} placeholder={stepType === 'http_get' ? 'https://api.github.com/users/octocat' : 'title'}/></label>
+          <TextField className="space-y-2" isRequired value={stepConfig} onChange={setStepConfig}><Label className="text-sm font-medium text-slate-200">{stepType === 'http_get' ? 'HTTPS URL' : 'JSON field name'}</Label><Input className={field} placeholder={stepType === 'http_get' ? 'https://api.github.com/users/octocat' : 'title'}/></TextField>
           <p className="text-xs leading-relaxed text-slate-500">{stepType === 'http_get' ? 'Allowed hosts: api.github.com or jsonplaceholder.typicode.com.' : 'Select a single JSON property. Running steps will be added in the next phase.'}</p>
           <button className={primary + ' w-full'} type="submit" disabled={busy}>{busy ? <Loader2 size={16} className="animate-spin"/> : <Plus size={16}/>} Add step</button>
         </form>
-      </Modal>}
+      </FlowModal>}
     </div>
   )
 }
@@ -208,6 +208,20 @@ function Loading({ label }: { label: string }) {
 function Empty({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
   return <div className="flex min-h-44 flex-col items-center justify-center px-6 py-12 text-center"><div className="mb-4 rounded-2xl bg-white/5 p-4 text-indigo-300">{icon}</div><h3 className="text-sm font-semibold">{title}</h3><p className="mt-2 max-w-xs text-xs leading-relaxed text-slate-500">{description}</p></div>
 }
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}><div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-md rounded-[26px] border border-white/10 bg-[#151b2b] p-7 text-slate-100 shadow-[0_30px_100px_rgba(0,0,0,0.6)]"><div className="mb-6 flex items-center justify-between"><h2 className="text-xl font-semibold">{title}</h2><button aria-label="Close" onClick={onClose}><X size={19}/></button></div>{children}</div></div>
+function FlowModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <HeroModal>
+      <HeroModal.Backdrop variant="blur" isOpen onOpenChange={isOpen => { if (!isOpen) onClose() }} className="bg-[#030712]/80">
+        <HeroModal.Container placement="center" size="md">
+          <HeroModal.Dialog aria-label={title} className="rounded-[26px] border border-white/10 bg-[#151b2b] p-0 text-slate-100 shadow-[0_30px_100px_rgba(0,0,0,0.6)]">
+            <HeroModal.Header className="flex items-center justify-between border-b border-white/[0.07] px-7 py-5">
+              <HeroModal.Heading className="text-xl font-semibold">{title}</HeroModal.Heading>
+              <HeroModal.CloseTrigger className="rounded-lg p-2 text-slate-400 hover:bg-white/5 hover:text-white" aria-label="Close"><X size={18}/></HeroModal.CloseTrigger>
+            </HeroModal.Header>
+            <HeroModal.Body className="px-7 py-6">{children}</HeroModal.Body>
+          </HeroModal.Dialog>
+        </HeroModal.Container>
+      </HeroModal.Backdrop>
+    </HeroModal>
+  )
 }
