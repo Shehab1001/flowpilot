@@ -124,25 +124,25 @@ export default function WorkflowsPage() {
   return (
     <div className="min-h-full bg-[#262626] text-neutral-100">
       <div className="mx-auto max-w-[1450px] px-5 py-8 sm:px-8 lg:px-10 lg:py-11">
-        <header className="mb-8 flex flex-col justify-between gap-5 border-b border-white/[0.06] pb-7 sm:flex-row sm:items-center">
+        <header className={`${current ? "mb-5 pb-4" : "mb-8 pb-7"} flex flex-col justify-between gap-5 border-b border-white/[0.06] sm:flex-row sm:items-center`}>
           <div>
             <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-indigo-400">
               <span className="flex size-7 items-center justify-center rounded-lg bg-indigo-500/15"><Sparkles size={14}/></span> WORKSPACE / AUTOMATIONS
             </div>
-            <h1 className="text-3xl font-bold tracking-[-0.035em] sm:text-[38px]">Workflow studio<span className="text-indigo-400">.</span></h1>
-            <p className="mt-2 text-sm text-neutral-400">Build powerful automations with a clear, focused workspace.</p>
+            <h1 className="text-3xl font-bold tracking-[-0.035em] sm:text-[38px]">{current ? "Workflow editor" : "Workflow studio"}<span className="text-indigo-400">.</span></h1>
+            <p className="mt-2 text-sm text-neutral-400">{current ? "A focused canvas for building and editing your workflow." : "Build powerful automations with a clear, focused workspace."}</p>
           </div>
-          <Button variant="primary" className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 font-semibold text-white shadow-lg shadow-indigo-500/20 hover:from-indigo-400 hover:to-violet-400" onPress={() => setCreateOpen(true)}><Plus size={17}/> New workflow</Button>
+          {!current && <Button variant="primary" className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 font-semibold text-white shadow-lg shadow-indigo-500/20 hover:from-indigo-400 hover:to-violet-400" onPress={() => setCreateOpen(true)}><Plus size={17}/> New workflow</Button>}
         </header>
 
         {error && <div role="alert" className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError('')}><X size={16}/></button></div>}
         {notice && <div role="status" className="mb-5 flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300"><CheckCircle2 size={16}/>{notice}</div>}
 
-        <section className="mb-7 grid gap-4 sm:grid-cols-3" aria-label="Workspace statistics">
+        {!current && <section className="mb-7 grid gap-4 sm:grid-cols-3" aria-label="Workspace statistics">
           <Metric icon={<WorkflowIcon size={21}/>} label="Total workflows" value={workflows.length} />
           <Metric icon={<Activity size={21}/>} label="Active" value={active} />
           <Metric icon={<CirclePause size={21}/>} label="Draft & paused" value={workflows.length - active} />
-        </section>
+        </section>}
 
         {!current ? (
           <section aria-label="All workflows" className="space-y-5">
