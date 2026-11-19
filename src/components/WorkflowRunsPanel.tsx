@@ -1,3 +1,4 @@
+import { parseStoredJson } from '../lib/stored-json'
 import { AlertCircle, CheckCircle2, Clock3, History, Loader2, Play } from 'lucide-react'
 import type { StoredRecord, WorkflowRun } from '../lib/workflow-api'
 
@@ -11,10 +12,8 @@ type Props = {
 }
 
 function stepsOf(run: WorkflowRun): Array<{ label: string; status: string; durationMs: number; error?: string; outputPreview?: string }> {
-  try {
-    const value = JSON.parse(run.stepsJson) as unknown
-    if (Array.isArray(value)) return value.filter(item => item && typeof item === 'object') as ReturnType<typeof stepsOf>
-  } catch { /* malformed historical run */ }
+  const value = parseStoredJson(run.stepsJson)
+  if (Array.isArray(value)) return value.filter(item => item && typeof item === 'object') as ReturnType<typeof stepsOf>
   return []
 }
 
