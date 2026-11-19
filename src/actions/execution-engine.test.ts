@@ -54,7 +54,7 @@ describe('executeSteps', () => {
   })
 
   it('limits response size even when Content-Length is missing', async () => {
-    const mock = vi.fn(async () => new Response('x'.repeat(130_000), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    const mock = vi.fn(async () => new Response('x'.repeat(140_000), { status: 200, headers: { 'Content-Type': 'application/json' } }))
     const execution = await executeSteps([step('fetch', 0, 'http_get', { url: 'https://api.github.com/users/octocat' })], mock as unknown as typeof fetch)
     expect(execution.error).toContain('128 KB')
   })
