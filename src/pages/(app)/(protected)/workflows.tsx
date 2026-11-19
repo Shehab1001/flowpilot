@@ -6,7 +6,7 @@ import {
 import {
   callWorkflowAction, decodeStepConfig, fetchSteps, fetchWorkflows,
   type StoredRecord, type StepType, type Workflow, type WorkflowStatus, type WorkflowStep,
-} from '../../lib/workflow-api'
+} from '../../../lib/workflow-api'
 
 type RecordWithId<T> = StoredRecord<T>
 
