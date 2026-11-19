@@ -1,3 +1,4 @@
+import { stepConfigObject } from './stored-json'
 import { getAuthToken } from 'deepspace'
 
 export type WorkflowStatus = 'draft' | 'active' | 'paused'
@@ -21,7 +22,7 @@ export interface WorkflowStep {
   label: string
   type: StepType
   position: number
-  config: string
+  config: unknown
 }
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string }
 type ListResult<T> = { records: StoredRecord<T>[]; count: number }
@@ -58,7 +59,7 @@ export interface WorkflowRun {
   startedAt: string
   durationMs: number
   error: string
-  stepsJson: string
+  stepsJson: unknown
   outputJson: string
 }
 
@@ -71,11 +72,8 @@ export function runWorkflow(workflowId: string) {
 }
 
 export function decodeStepConfig(step: WorkflowStep): string {
-  try {
-    const config = JSON.parse(step.config) as Record<string, unknown>
-    const value = step.type === 'http_get' ? config.url : config.field
-    return typeof value === 'string' ? value : ''
-  } catch {
-    return ''
-  }
+  const config = stepConfigObject(step.config)
+  if (!config) return ''
+  const value = step.type === 'http_get' ? config.url : config.field
+  return typeof value === 'string' ? value : ''
 }
