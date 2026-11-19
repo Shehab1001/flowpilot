@@ -26,8 +26,8 @@ export default function WorkflowCanvas({ steps, disabled = false, onAdd, onEdit,
         </div>
         <span className="text-[11px] text-neutral-500">Sequential · top to bottom</span>
       </div>
-      <div className="workflow-canvas-grid min-h-64 px-3 py-7 sm:px-6">
-        <div className="mx-auto flex w-full max-w-[480px] flex-col items-center">
+      <div className="workflow-canvas-grid min-h-[520px] px-3 py-8 sm:px-8">
+        <div className="mx-auto flex w-full max-w-[720px] flex-col items-center">
           <div className="flex items-center gap-2 rounded-full border border-emerald-400/25 bg-[#27362e] px-4 py-2 text-xs font-semibold text-emerald-300">
             <span className="size-2 rounded-full bg-emerald-400" aria-hidden /> Start
           </div>
