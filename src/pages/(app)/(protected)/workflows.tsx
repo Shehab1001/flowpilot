@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Button, Card, Chip, Input, Label, Modal as HeroModal, TextArea, TextField } from '@heroui/react'
 import WorkflowCanvas from '../../../components/WorkflowCanvas'
+import WorkflowRunsPanel from '../../../components/WorkflowRunsPanel'
 import {
   Activity, ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Database, Sparkles,
   GitBranch, Loader2, Plus, RefreshCw, Search, Trash2, Workflow as WorkflowIcon, X,
 } from 'lucide-react'
 import {
-  callWorkflowAction, decodeStepConfig, fetchSteps, fetchWorkflows,
-  type StoredRecord, type StepType, type Workflow, type WorkflowStep,
+  callWorkflowAction, decodeStepConfig, fetchSteps, fetchWorkflows, fetchRuns, runWorkflow as executeWorkflow,
+  type StoredRecord, type StepType, type Workflow, type WorkflowStep, type WorkflowRun,
 } from '../../../lib/workflow-api'
 
 type RecordWithId<T> = StoredRecord<T>
@@ -21,6 +22,9 @@ const message = (error: unknown) => error instanceof Error ? error.message : 'So
 export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<RecordWithId<Workflow>[]>([])
   const [steps, setSteps] = useState<RecordWithId<WorkflowStep>[]>([])
+  const [runs, setRuns] = useState<RecordWithId<WorkflowRun>[]>([])
+  const [runsLoading, setRunsLoading] = useState(false)
+  const [running, setRunning] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -59,11 +63,32 @@ export default function WorkflowsPage() {
     finally { setStepsLoading(false) }
   }, [])
 
+  const refreshRuns = useCallback(async (workflowId: string) => {
+    setRunsLoading(true)
+    try {
+      const result = await fetchRuns(workflowId)
+      setRuns([...result.records].sort((a, b) => b.data.startedAt.localeCompare(a.data.startedAt)))
+    } catch (err) { setError(message(err)) }
+    finally { setRunsLoading(false) }
+  }, [])
+
+  async function handleRun(workflowId: string) {
+    setRunning(true)
+    setError('')
+    setNotice('')
+    try {
+      const run = await executeWorkflow(workflowId)
+      setNotice(run.status === 'success' ? 'Workflow completed successfully.' : 'Workflow failed. See execution history for details.')
+      await refreshRuns(workflowId)
+    } catch (err) { setError(message(err)) }
+    finally { setRunning(false) }
+  }
+
   useEffect(() => { void refresh() }, [refresh])
   useEffect(() => {
-    if (selected) void refreshSteps(selected)
-    else setSteps([])
-  }, [selected, refreshSteps])
+    if (selected) { void refreshSteps(selected); void refreshRuns(selected) }
+    else { setSteps([]); setRuns([]) }
+  }, [selected, refreshSteps, refreshRuns])
 
   async function mutate(operation: () => Promise<unknown>, success: string, reloadSteps = false) {
     setBusy(true)
@@ -193,7 +218,7 @@ export default function WorkflowsPage() {
                   <select id="workflow-status" className={field + ' !w-auto !py-2'} disabled={busy} value={current.data.status} onChange={e => void mutate(() => callWorkflowAction('updateWorkflow', { workflowId: current.recordId, status: e.target.value }), 'Status updated.')}>
                     <option value="draft">Draft</option><option value="active">Active (definition only)</option><option value="paused">Paused</option>
                   </select>
-                  <span className="ml-auto text-xs text-neutral-500">Execution engine coming next</span>
+                  <span className="ml-auto text-xs text-neutral-500">Manual execution available below</span>
                 </div>
                 <div className="mt-7 flex items-center justify-between gap-3"><div><h3 className="font-semibold">Workflow steps</h3><p className="mt-1 text-xs text-neutral-500">Build your pipeline, one step at a time</p></div><button className={secondary} onClick={() => openStepEditor()}><Plus size={16}/> Add step</button></div>
                 {stepsLoading ? <Loading label="Loading steps..." /> : (
@@ -209,13 +234,21 @@ export default function WorkflowsPage() {
                     }}
                   />
                 )}
+                <WorkflowRunsPanel
+                  runs={runs}
+                  loading={runsLoading}
+                  running={running}
+                  disabled={busy || stepsLoading || runsLoading || steps.length === 0 || current.data.status === 'paused'}
+                  onRun={() => void handleRun(current.recordId)}
+                  onRefresh={() => void refreshRuns(current.recordId)}
+                />
               </>
             )}
           </Card>
           </section>
         )}
 
-        <p className="mt-8 flex flex-wrap items-center gap-2 text-xs text-neutral-500"><CheckCircle2 size={14}/> Connected to DeepSpace authenticated server actions <ArrowRight size={14}/> Workflow execution is not enabled yet.</p>
+        <p className="mt-8 flex flex-wrap items-center gap-2 text-xs text-neutral-500"><CheckCircle2 size={14}/> Connected to DeepSpace authenticated server actions <ArrowRight size={14}/> Manual workflow execution and saved run history</p>
       </div>
 
       {createOpen && <FlowModal title="Create workflow" onClose={() => setCreateOpen(false)}>
