@@ -234,3 +234,12 @@
     touch-action: manipulation;
   }
 }
+
+/* Subtle editor grid, independent of external canvas or graph libraries. */
+.workflow-canvas-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: center center;
+}
