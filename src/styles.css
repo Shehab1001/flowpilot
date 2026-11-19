@@ -19,26 +19,26 @@
  */
 @theme {
   /* shadcn core tokens — slate (default): neutral gray on near-black, indigo accent */
-  --color-background: #0a0a0a;
+  --color-background: #0b1020;
   --color-foreground: #e8eaed;
-  --color-card: #161616;
+  --color-card: #151b2b;
   --color-card-foreground: #e8eaed;
-  --color-popover: #161616;
+  --color-popover: #151b2b;
   --color-popover-foreground: #e8eaed;
   --color-primary: #818cf8;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #1e1e1e;
+  --color-secondary: #1c2437;
   --color-secondary-foreground: #e8eaed;
-  --color-muted: #1e1e1e;
+  --color-muted: #202a3d;
   --color-muted-foreground: #9ca3af;
-  --color-accent: #262626;
+  --color-accent: #283450;
   --color-accent-foreground: #e8eaed;
   --color-destructive: #ef4444;
   --color-destructive-foreground: #ffffff;
-  --color-border: rgba(60, 64, 67, 0.6);
-  --color-input: rgba(60, 64, 67, 0.6);
+  --color-border: rgba(148, 163, 184, 0.14);
+  --color-input: rgba(148, 163, 184, 0.15);
   --color-ring: #818cf8;
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 
   /*
    * Map the rounded-* utilities onto --radius so a theme (or you) can change
@@ -89,8 +89,8 @@
      simply doesn't reference them. In every theme keep the panel reading as
      elevated: dark → panel lighter than shell; light → white panel on a
      faintly darker shell. */
-  --color-shell: #0a0a0a;
-  --color-shell-panel: #161616;
+  --color-shell: #0b1020;
+  --color-shell-panel: #151b2b;
 
   /* Animations */
   --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
