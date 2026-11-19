@@ -7,8 +7,8 @@
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 
-type Workflow = { ownerId: string; name: string; description: string; status: string }
-type WorkflowStep = {
+type Workflow = Record<string, unknown> & { ownerId: string; name: string; description: string; status: string }
+type WorkflowStep = Record<string, unknown> & {
   ownerId: string
   workflowId: string
   label: string
@@ -49,13 +49,13 @@ function validateConfig(type: WorkflowStep['type'], value: unknown): string | nu
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const config = value as Record<string, unknown>
   if (type === 'http_get') {
-    // Only public HTTPS endpoints are eligible; execution additionally needs
+    // Only allowlisted HTTPS endpoints are eligible; execution additionally needs
     // DNS/IP validation and redirect blocking (not implemented yet).
     if (typeof config.url !== 'string' || config.url.length > 2048) return null
     let url: URL
     try { url = new URL(config.url) } catch { return null }
     if (url.protocol !== 'https:' || url.username || url.password || url.port) return null
-    if (!/^[a-z0-9.-]+$/i.test(url.hostname) || !url.hostname.includes('.')) return null
+    if (!['jsonplaceholder.typicode.com', 'api.github.com'].includes(url.hostname)) return null
     if (/(^|\.)(localhost|local|internal|test|example|invalid)$/.test(url.hostname)) return null
     if (/^(\d+\.){3}\d+$/.test(url.hostname) || url.hostname.includes(':')) return null
     if (url.hostname.endsWith('.localhost') || url.hostname.endsWith('.onion')) return null
