@@ -93,8 +93,16 @@ export default function WorkflowCanvas({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
-    if (d.kind !== 'node' || !d.moved || !onSaveLayout || disabled) return
-    const latest = positionsRef.current
+    if (d.kind !== 'node' || !d.nodeId || !d.moved || !onSaveLayout || disabled) return
+    // Calculate the final position from pointer-up coordinates: React may not
+    // have committed the last pointer-move state before this handler runs.
+    const finalPosition = rounded({
+      x: d.origin.x + (event.clientX - d.x) / zoom,
+      y: d.origin.y + (event.clientY - d.y) / zoom,
+    })
+    const latest = { ...positionsRef.current, [d.nodeId]: finalPosition }
+    positionsRef.current = latest
+    setPositions(latest)
     setSaving(true)
     setSaveError('')
     try {
