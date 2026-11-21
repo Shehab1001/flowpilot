@@ -15,6 +15,7 @@ export const workflowsSchema: CollectionSchema = {
     { name: 'name', storage: 'text', interpretation: 'plain', required: true },
     { name: 'description', storage: 'text', interpretation: 'plain', default: '' },
     { name: 'status', storage: 'text', interpretation: { kind: 'select', options: ['draft', 'active', 'paused'] }, default: 'draft' },
+    { name: 'nodeLayout', storage: 'text', interpretation: { kind: 'json' }, default: '{}' },
   ],
   permissions: {
     '*': denied,
