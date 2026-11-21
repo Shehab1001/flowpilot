@@ -2,10 +2,13 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Button, Card, Input, Label, Modal as HeroModal, TextArea, TextField } from '@heroui/react'
 import WorkflowCanvas from '../../../components/WorkflowCanvas'
 import WorkflowRunsPanel from '../../../components/WorkflowRunsPanel'
+import NodeExecutionInspector from '../../../components/NodeExecutionInspector'
+import { WORKFLOW_TEMPLATES } from '../../../lib/workflow-templates'
+import { decodeRunSteps } from '../../../lib/workflow-run-preview'
 import type { NodeLayout } from '../../../lib/workflow-layout'
 import {
   Activity, ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Database, Sparkles, Clock3,
-  GitBranch, Loader2, Plus, RefreshCw, Search, Trash2, Workflow as WorkflowIcon, X,
+  GitBranch, Loader2, Plus, RefreshCw, Search, Trash2, Workflow as WorkflowIcon, X, BookOpen, ArrowUpRight,
 } from 'lucide-react'
 import {
   callWorkflowAction, decodeStepConfig, fetchSteps, fetchWorkflows, fetchRuns, runWorkflow as executeWorkflow,
@@ -26,6 +29,8 @@ export default function WorkflowsPage() {
   const [runs, setRuns] = useState<RecordWithId<WorkflowRun>[]>([])
   const [runsLoading, setRunsLoading] = useState(false)
   const [running, setRunning] = useState(false)
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -79,6 +84,7 @@ export default function WorkflowsPage() {
     setNotice('')
     try {
       const run = await executeWorkflow(workflowId)
+      setSelectedRunId(run.recordId)
       if (run.status === 'success') setNotice('Workflow completed successfully.')
       else setError(run.error || 'Workflow failed. See execution history for details.')
       await refreshRuns(workflowId)
@@ -88,6 +94,8 @@ export default function WorkflowsPage() {
 
   useEffect(() => { void refresh() }, [refresh])
   useEffect(() => {
+    setSelectedRunId(null)
+    setSelectedStepId(null)
     if (selected) { void refreshSteps(selected); void refreshRuns(selected) }
     else { setSteps([]); setRuns([]) }
   }, [selected, refreshSteps, refreshRuns])
@@ -144,9 +152,26 @@ export default function WorkflowsPage() {
     if (ok) { setStepOpen(false); setEditingStep(null); setStepLabel('') }
   }
 
+  async function createFromTemplate(templateId: string) {
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await callWorkflowAction<{ workflowId: string }>('createWorkflowFromTemplate', { templateId })
+      await refresh()
+      setSelected(created.workflowId)
+      setNotice('Template created! Review the nodes, then run your workflow.')
+    } catch (err) { setError(message(err)) }
+    finally { setBusy(false) }
+  }
+
   const current = workflows.find(w => w.recordId === selected)
   const filtered = workflows.filter(w => (w.data.name + ' ' + w.data.description).toLowerCase().includes(search.toLowerCase()))
   const active = workflows.filter(w => w.data.status === 'active').length
+  const selectedRun = runs.find(run => run.recordId === selectedRunId) ?? (selectedRunId ? null : runs[0] ?? null)
+  const inspectedSteps = decodeRunSteps(selectedRun?.data)
+  const inspectedStep = steps.find(step => step.recordId === selectedStepId) ?? null
+  const inspectedResult = inspectedSteps.find(step => step.stepId === selectedStepId) ?? null
 
   return (
     <div className="min-h-full bg-[#262626] text-neutral-100">
@@ -180,6 +205,31 @@ export default function WorkflowsPage() {
               </div>
               <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-neutral-400">{workflows.length} workflows</span>
             </div>
+          <div className="rounded-[20px] border border-indigo-400/15 bg-gradient-to-br from-indigo-500/[0.075] to-[#292929] p-5 sm:p-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="flex items-center gap-2 text-base font-bold text-neutral-100"><BookOpen size={19} className="text-indigo-300"/> Quick-start templates</h3>
+                <p className="mt-1 text-xs text-neutral-400">Build a complete two-step demo workflow instantly.</p>
+              </div>
+              <span className="rounded-full border border-indigo-400/20 px-3 py-1 text-[11px] text-indigo-300">Ready-to-run examples</span>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              {WORKFLOW_TEMPLATES.map(template => (
+                <div key={template.id} className="flex flex-col justify-between gap-4 rounded-2xl border border-white/[0.09] bg-[#333333] p-4">
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-300">{template.category}</span>
+                    <h4 className="mt-2 text-sm font-bold text-white">{template.name}</h4>
+                    <p className="mt-2 text-xs leading-5 text-neutral-400">{template.description}</p>
+                    <p className="mt-2 text-[11px] text-neutral-500">{template.steps.length} connected steps</p>
+                  </div>
+                  <button type="button" disabled={busy} onClick={() => void createFromTemplate(template.id)}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-400/25 bg-indigo-500/15 px-3 py-2.5 text-xs font-semibold text-indigo-200 transition hover:bg-indigo-500/25 disabled:opacity-50">
+                    <Plus size={14}/> {busy ? 'Creating...' : 'Use template'} <ArrowUpRight size={13}/>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="overflow-hidden rounded-[20px] border border-white/[0.08] bg-[#2e2e2e]">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4">
               <div>
@@ -256,6 +306,9 @@ export default function WorkflowsPage() {
                     workflowId={current.recordId}
                     steps={steps}
                     nodeLayout={current.data.nodeLayout}
+                    runSteps={inspectedSteps}
+                    selectedStepId={selectedStepId}
+                    onSelectStep={setSelectedStepId}
                     disabled={busy || running}
                     onSaveLayout={async (nodeLayout: NodeLayout) => {
                       const workflowId = current.recordId
@@ -272,7 +325,12 @@ export default function WorkflowsPage() {
                     }}
                   />
                 )}
+                <div className="mt-4">
+                  <NodeExecutionInspector step={inspectedStep} result={inspectedResult} hasRun={Boolean(selectedRun)}/>
+                </div>
                 <WorkflowRunsPanel
+                  selectedRunId={selectedRun?.recordId ?? null}
+                  onSelectRun={id => { setSelectedRunId(id); setSelectedStepId(null) }}
                   runs={runs}
                   loading={runsLoading}
                   running={running}
