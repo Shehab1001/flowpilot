@@ -69,6 +69,46 @@ describe('executeSteps', () => {
     expect(execution.error).toContain('128 KB')
   })
 
+  it('recovers an opaque workerd connection failure and continues the workflow', async () => {
+    const network = vi.fn(async () => { throw new Error('internal error; reference = abc123def') })
+    const recovery = vi.fn(async () => jsonResponse({ title: 'Recovered' }))
+    const result = await executeSteps([
+      step('fetch', 0, 'http_get', { url: 'https://api.github.com/users/octocat' }),
+      step('transform', 1, 'json_transform', { field: 'title' }),
+    ], network as unknown as typeof fetch, recovery)
+    expect(result.status).toBe('success')
+    expect(result.output).toBe('Recovered')
+    expect(recovery).toHaveBeenCalledTimes(1)
+  })
+
+  it('recovers a response-body streaming failure, not just a fetch failure', async () => {
+    const badBody = new ReadableStream<Uint8Array>({
+      start(controller) { controller.error(new Error('internal error; reference = streamabc123')) },
+    })
+    const network = vi.fn(async () => new Response(badBody, {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    }))
+    const recovery = vi.fn(async () => jsonResponse({ title: 'Recovered body' }))
+    const result = await executeSteps([
+      step('fetch', 0, 'http_get', { url: 'https://jsonplaceholder.typicode.com/todos/1' }),
+      step('transform', 1, 'json_transform', { field: 'title' }),
+    ], network as unknown as typeof fetch, recovery)
+    expect(result.status).toBe('success')
+    expect(result.output).toBe('Recovered body')
+    expect(recovery).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not conceal ordinary response errors when recovery is present', async () => {
+    const network = vi.fn(async () => new Response(null, { status: 404 }))
+    const recovery = vi.fn()
+    const result = await executeSteps([
+      step('fetch', 0, 'http_get', { url: 'https://api.github.com/users/missing' }),
+    ], network as unknown as typeof fetch, recovery)
+    expect(result.status).toBe('failed')
+    expect(result.error).toContain('404')
+    expect(recovery).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects empty workflows', async () => {
     const execution = await executeSteps([])
     expect(execution.status).toBe('failed')
