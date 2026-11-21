@@ -1,0 +1,408 @@
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { Button, Card, Input, Label, Modal as HeroModal, TextArea, TextField } from '@heroui/react'
+import WorkflowCanvas from '../../../components/WorkflowCanvas'
+import WorkflowRunsPanel from '../../../components/WorkflowRunsPanel'
+import NodeExecutionInspector from '../../../components/NodeExecutionInspector'
+import { WORKFLOW_TEMPLATES } from '../../../lib/workflow-templates'
+import { decodeRunSteps } from '../../../lib/workflow-run-preview'
+import type { NodeLayout } from '../../../lib/workflow-layout'
+import {
+  Activity, ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Database, Sparkles, Clock3,
+  GitBranch, Loader2, Plus, RefreshCw, Search, Trash2, Workflow as WorkflowIcon, X, BookOpen, ArrowUpRight,
+} from 'lucide-react'
+import {
+  callWorkflowAction, decodeStepConfig, fetchSteps, fetchWorkflows, fetchRuns, runWorkflow as executeWorkflow,
+  type StoredRecord, type StepType, type Workflow, type WorkflowStep, type WorkflowRun,
+} from '../../../lib/workflow-api'
+
+type RecordWithId<T> = StoredRecord<T>
+
+const panel = 'rounded-[22px] border border-white/[0.075] bg-[#323232]/90 shadow-[0_14px_42px_-24px_rgba(0,0,0,0.65)] backdrop-blur-xl'
+const field = 'w-full rounded-xl border border-white/[0.09] bg-[#292929]/90 px-4 py-3 text-sm text-neutral-100 outline-none ring-0 transition-all placeholder:text-neutral-600 focus:border-indigo-400/70 focus:ring-2 focus:ring-indigo-500/10'
+const primary = 'inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50'
+const secondary = 'inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-medium text-neutral-300 transition-colors hover:border-indigo-400/50 hover:text-white disabled:opacity-50'
+const message = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong.'
+
+export default function WorkflowsPage() {
+  const [workflows, setWorkflows] = useState<RecordWithId<Workflow>[]>([])
+  const [steps, setSteps] = useState<RecordWithId<WorkflowStep>[]>([])
+  const [runs, setRuns] = useState<RecordWithId<WorkflowRun>[]>([])
+  const [runsLoading, setRunsLoading] = useState(false)
+  const [running, setRunning] = useState(false)
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [stepsLoading, setStepsLoading] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [stepOpen, setStepOpen] = useState(false)
+  const [editingStep, setEditingStep] = useState<RecordWithId<WorkflowStep> | null>(null)
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [stepLabel, setStepLabel] = useState('')
+  const [stepType, setStepType] = useState<StepType>('http_get')
+  const [stepConfig, setStepConfig] = useState('https://jsonplaceholder.typicode.com/todos/1')
+
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    try {
+      const result = await fetchWorkflows()
+      setWorkflows(result.records)
+      setSelected(current => current && result.records.some(row => row.recordId === current) ? current : null)
+      setError('')
+    } catch (err) { setError(message(err)) }
+    finally { setLoading(false) }
+  }, [])
+
+  const refreshSteps = useCallback(async (workflowId: string) => {
+    setStepsLoading(true)
+    setSteps([])
+    try {
+      const result = await fetchSteps(workflowId)
+      setSteps(result.records.sort((a, b) => a.data.position - b.data.position))
+      setError('')
+    } catch (err) { setError(message(err)) }
+    finally { setStepsLoading(false) }
+  }, [])
+
+  const refreshRuns = useCallback(async (workflowId: string) => {
+    setRunsLoading(true)
+    try {
+      const result = await fetchRuns(workflowId)
+      setRuns([...result.records].sort((a, b) => b.data.startedAt.localeCompare(a.data.startedAt)))
+    } catch (err) { setError(message(err)) }
+    finally { setRunsLoading(false) }
+  }, [])
+
+  async function handleRun(workflowId: string) {
+    setRunning(true)
+    setError('')
+    setNotice('')
+    try {
+      const run = await executeWorkflow(workflowId)
+      setSelectedRunId(run.recordId)
+      if (run.status === 'success') setNotice('Workflow completed successfully.')
+      else setError(run.error || 'Workflow failed. See execution history for details.')
+      await refreshRuns(workflowId)
+    } catch (err) { setError(message(err)) }
+    finally { setRunning(false) }
+  }
+
+  useEffect(() => { void refresh() }, [refresh])
+  useEffect(() => {
+    setSelectedRunId(null)
+    setSelectedStepId(null)
+    if (selected) { void refreshSteps(selected); void refreshRuns(selected) }
+    else { setSteps([]); setRuns([]) }
+  }, [selected, refreshSteps, refreshRuns])
+
+  async function mutate(operation: () => Promise<unknown>, success: string, reloadSteps = false) {
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      await operation()
+      setNotice(success)
+      await refresh()
+      if (reloadSteps && selected) await refreshSteps(selected)
+      return true
+    } catch (err) {
+      setError(message(err))
+      return false
+    } finally { setBusy(false) }
+  }
+  async function createWorkflow(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const ok = await mutate(() => callWorkflowAction('createWorkflow', { name, description }), 'Workflow created successfully. Select it from the list to open the editor.')
+    if (ok) { setCreateOpen(false); setName(''); setDescription('') }
+  }
+  function openStepEditor(step?: RecordWithId<WorkflowStep>) {
+    setEditingStep(step ?? null)
+    setStepLabel(step?.data.label ?? '')
+    setStepType(step?.data.type ?? 'http_get')
+    setStepConfig(step ? decodeStepConfig(step.data) : 'https://jsonplaceholder.typicode.com/todos/1')
+    setStepOpen(true)
+  }
+  async function saveStep(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selected) return
+    const config = stepType === 'http_get' ? { url: stepConfig.trim() } : { field: stepConfig.trim() }
+    let params: Record<string, unknown>
+    let actionName: string
+    if (editingStep) {
+      actionName = 'updateStep'
+      params = { stepId: editingStep.recordId, label: stepLabel, type: stepType, config }
+    } else {
+      const usedPositions = new Set(steps.map(item => item.data.position))
+      let position = 0
+      while (usedPositions.has(position)) position++
+      if (position > 99 || steps.length >= 20) { setError('Maximum 20 steps per workflow'); return }
+      actionName = 'createStep'
+      params = { workflowId: selected, label: stepLabel, type: stepType, position, config }
+    }
+    const ok = await mutate(
+      () => callWorkflowAction(actionName, params),
+      editingStep ? 'Step updated successfully.' : 'Step added successfully.',
+      true,
+    )
+    if (ok) { setStepOpen(false); setEditingStep(null); setStepLabel('') }
+  }
+
+  async function createFromTemplate(templateId: string) {
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const created = await callWorkflowAction<{ workflowId: string }>('createWorkflowFromTemplate', { templateId })
+      await refresh()
+      setSelected(created.workflowId)
+      setNotice('Template created! Review the nodes, then run your workflow.')
+    } catch (err) { setError(message(err)) }
+    finally { setBusy(false) }
+  }
+
+  const current = workflows.find(w => w.recordId === selected)
+  const filtered = workflows.filter(w => (w.data.name + ' ' + w.data.description).toLowerCase().includes(search.toLowerCase()))
+  const active = workflows.filter(w => w.data.status === 'active').length
+  const selectedRun = runs.find(run => run.recordId === selectedRunId) ?? (selectedRunId ? null : runs[0] ?? null)
+  const inspectedSteps = decodeRunSteps(selectedRun?.data)
+  const inspectedStep = steps.find(step => step.recordId === selectedStepId) ?? null
+  const inspectedResult = inspectedSteps.find(step => step.stepId === selectedStepId) ?? null
+
+  return (
+    <div className="min-h-full bg-[#262626] text-neutral-100">
+      <div className="mx-auto max-w-[1450px] px-5 py-8 sm:px-8 lg:px-10 lg:py-11">
+        <header className={`${current ? "mb-5 pb-4" : "mb-8 pb-7"} flex flex-col justify-between gap-5 border-b border-white/[0.06] sm:flex-row sm:items-center`}>
+          <div>
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-indigo-400">
+              <span className="flex size-7 items-center justify-center rounded-lg bg-indigo-500/15"><Sparkles size={14}/></span> WORKSPACE / AUTOMATIONS
+            </div>
+            <h1 className="text-3xl font-bold tracking-[-0.035em] sm:text-[38px]">{current ? "Workflow editor" : "Workflow studio"}<span className="text-indigo-400">.</span></h1>
+            <p className="mt-2 text-sm text-neutral-400">{current ? "A focused canvas for building and editing your workflow." : "Build powerful automations with a clear, focused workspace."}</p>
+          </div>
+          {!current && <Button variant="primary" className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 font-semibold text-white shadow-lg shadow-indigo-500/20 hover:from-indigo-400 hover:to-violet-400" onPress={() => setCreateOpen(true)}><Plus size={17}/> New workflow</Button>}
+        </header>
+
+        {error && <div role="alert" className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError('')}><X size={16}/></button></div>}
+        {notice && <div role="status" className="mb-5 flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300"><CheckCircle2 size={16}/>{notice}</div>}
+
+        {!current && <section className="mb-8 grid gap-3 sm:grid-cols-3" aria-label="Workspace statistics">
+          <Metric icon={<WorkflowIcon size={20}/>} label="Total workflows" value={workflows.length} tone="indigo" />
+          <Metric icon={<Activity size={20}/>} label="Active workflows" value={active} tone="emerald" />
+          <Metric icon={<CirclePause size={20}/>} label="Draft & paused" value={workflows.length - active} tone="amber" />
+        </section>}
+
+        {!current ? (
+          <section aria-label="All workflows" className="space-y-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">Your workflows</h2>
+                <p className="mt-1 text-sm text-neutral-400">Choose a workflow to open its dedicated editor.</p>
+              </div>
+              <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-neutral-400">{workflows.length} workflows</span>
+            </div>
+          <div className="rounded-[20px] border border-indigo-400/15 bg-gradient-to-br from-indigo-500/[0.075] to-[#292929] p-5 sm:p-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="flex items-center gap-2 text-base font-bold text-neutral-100"><BookOpen size={19} className="text-indigo-300"/> Quick-start templates</h3>
+                <p className="mt-1 text-xs text-neutral-400">Build a complete two-step demo workflow instantly.</p>
+              </div>
+              <span className="rounded-full border border-indigo-400/20 px-3 py-1 text-[11px] text-indigo-300">Ready-to-run examples</span>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              {WORKFLOW_TEMPLATES.map(template => (
+                <div key={template.id} className="flex flex-col justify-between gap-4 rounded-2xl border border-white/[0.09] bg-[#333333] p-4">
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-300">{template.category}</span>
+                    <h4 className="mt-2 text-sm font-bold text-white">{template.name}</h4>
+                    <p className="mt-2 text-xs leading-5 text-neutral-400">{template.description}</p>
+                    <p className="mt-2 text-[11px] text-neutral-500">{template.steps.length} connected steps</p>
+                  </div>
+                  <button type="button" disabled={busy} onClick={() => void createFromTemplate(template.id)}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-400/25 bg-indigo-500/15 px-3 py-2.5 text-xs font-semibold text-indigo-200 transition hover:bg-indigo-500/25 disabled:opacity-50">
+                    <Plus size={14}/> {busy ? 'Creating...' : 'Use template'} <ArrowUpRight size={13}/>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-[20px] border border-white/[0.08] bg-[#2e2e2e]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4">
+              <div>
+                <h3 className="text-sm font-semibold text-neutral-100">Workflow library</h3>
+                <p className="mt-0.5 text-xs text-neutral-500">All your automations in one place</p>
+              </div>
+              <button className={secondary + ' !px-3 !py-2'} aria-label="Refresh workflows" disabled={loading} onClick={() => void refresh()}>
+                <RefreshCw size={15} className={loading ? 'animate-spin' : ''}/> Refresh
+              </button>
+            </div>
+            <div className="px-5 pt-4">
+              <div className="relative max-w-md">
+                <Search size={17} className="pointer-events-none absolute left-3 top-3 text-neutral-500"/>
+                <input aria-label="Search workflows" className={field + ' !py-2.5 !pl-10'}
+                  placeholder="Search workflows..." value={search} onChange={e => setSearch(e.target.value)}/>
+              </div>
+            </div>
+            <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-3">
+              {loading ? <Loading label="Loading workflows..." /> : filtered.length === 0
+                ? <Empty icon={<Database size={26}/>} title={search ? 'No matching workflows' : 'No workflows yet'} description={search ? 'Try another search term.' : 'Create your first workflow to start building.'}/>
+                : filtered.map(w => (
+                  <button key={w.recordId} type="button" onClick={() => setSelected(w.recordId)}
+                    className="group relative flex min-h-[176px] flex-col justify-between overflow-hidden rounded-2xl border border-white/[0.09] bg-[#363636] p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-400/40 hover:bg-[#3b3a43] hover:shadow-[0_14px_30px_rgba(0,0,0,.2)] focus-visible:outline-2 focus-visible:outline-indigo-400">
+                    <div>
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-indigo-400/15 bg-indigo-500/10 text-indigo-300">
+                          <WorkflowIcon size={19}/>
+                        </span>
+                        <ChevronRight size={19} className="text-neutral-500 transition-transform group-hover:translate-x-1 group-hover:text-indigo-300"/>
+                      </div>
+                      <h3 className="truncate text-[15px] font-bold text-neutral-100">{w.data.name}</h3>
+                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-neutral-400">{w.data.description || 'No description provided.'}</p>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between border-t border-white/[0.08] pt-3">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${w.data.status === 'active' ? 'bg-emerald-400/10 text-emerald-300' : w.data.status === 'paused' ? 'bg-amber-400/10 text-amber-300' : 'bg-white/[0.07] text-neutral-300'}`}>
+                        <span className={`size-1.5 rounded-full ${w.data.status === 'active' ? 'bg-emerald-400' : w.data.status === 'paused' ? 'bg-amber-400' : 'bg-neutral-400'}`}/>
+                        {w.data.status}
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+                        <Clock3 size={13}/> Open editor
+                      </span>
+                    </div>
+                  </button>
+                ))}
+            </div>
+          </div>
+
+          </section>
+        ) : (
+          <section aria-label="Workflow editor" className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <button type="button" className={secondary} onClick={() => { setSelected(null); setStepOpen(false) }}>
+                <ArrowLeft size={16}/> All workflows
+              </button>
+              <span className="rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-300">Workflow editor · full workspace</span>
+            </div>
+          <Card className={panel + ' min-h-[calc(100vh-250px)] p-5 sm:p-7'}>
+            {!current ? <Empty icon={<GitBranch size={30}/>} title="Select a workflow" description="Choose a workflow to view and edit its steps."/> : (
+              <>
+                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/[0.06] pb-6">
+                  <div className="min-w-0 flex-1"><p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-indigo-400"><GitBranch size={14}/> Workflow details</p><h2 className="mt-2 break-words text-2xl font-bold">{current.data.name}</h2><p className="mt-2 text-sm text-neutral-400">{current.data.description || 'Add automation steps to this workflow.'}</p></div>
+                  <button aria-label="Delete workflow" title="Delete workflow" className={secondary + ' !px-3 text-rose-400 hover:text-rose-300'} disabled={busy} onClick={() => { if (window.confirm('Delete this workflow and all its steps? This cannot be undone.')) void mutate(() => callWorkflowAction('deleteWorkflow', { workflowId: current.recordId }), 'Workflow deleted.') }}><Trash2 size={17}/></button>
+                </div>
+                <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.025] px-4 py-3">
+                  <label htmlFor="workflow-status" className="text-sm text-neutral-400">Status</label>
+                  <select id="workflow-status" className={field + ' !w-auto !py-2'} disabled={busy} value={current.data.status} onChange={e => void mutate(() => callWorkflowAction('updateWorkflow', { workflowId: current.recordId, status: e.target.value }), 'Status updated.')}>
+                    <option value="draft">Draft</option><option value="active">Active</option><option value="paused">Paused</option>
+                  </select>
+                  <span className="ml-auto text-xs text-neutral-500">Runs are manual; no scheduling yet</span>
+                </div>
+                <div className="mt-7 flex items-center justify-between gap-3"><div><h3 className="font-semibold">Workflow steps</h3><p className="mt-1 text-xs text-neutral-500">Build your pipeline, one step at a time</p></div><button className={secondary} onClick={() => openStepEditor()}><Plus size={16}/> Add step</button></div>
+                {stepsLoading ? <Loading label="Loading steps..." /> : (
+                  <WorkflowCanvas
+                    workflowId={current.recordId}
+                    steps={steps}
+                    nodeLayout={current.data.nodeLayout}
+                    runSteps={inspectedSteps}
+                    selectedStepId={selectedStepId}
+                    onSelectStep={setSelectedStepId}
+                    disabled={busy || running}
+                    onSaveLayout={async (nodeLayout: NodeLayout) => {
+                      const workflowId = current.recordId
+                      await callWorkflowAction('updateWorkflow', { workflowId, nodeLayout })
+                      setWorkflows(previous => previous.map(item => item.recordId === workflowId
+                        ? { ...item, data: { ...item.data, nodeLayout } } : item))
+                    }}
+                    onAdd={() => openStepEditor()}
+                    onEdit={openStepEditor}
+                    onDelete={step => {
+                      if (window.confirm(`Delete step "${step.data.label}"?`)) {
+                        void mutate(() => callWorkflowAction('deleteStep', { stepId: step.recordId }), 'Step deleted.', true)
+                      }
+                    }}
+                  />
+                )}
+                <div className="mt-4">
+                  <NodeExecutionInspector step={inspectedStep} result={inspectedResult} hasRun={Boolean(selectedRun)}/>
+                </div>
+                <WorkflowRunsPanel
+                  selectedRunId={selectedRun?.recordId ?? null}
+                  onSelectRun={id => { setSelectedRunId(id); setSelectedStepId(null) }}
+                  runs={runs}
+                  loading={runsLoading}
+                  running={running}
+                  disabled={busy || stepsLoading || runsLoading || steps.length === 0 || current.data.status === 'paused'}
+                  onRun={() => void handleRun(current.recordId)}
+                  onRefresh={() => void refreshRuns(current.recordId)}
+                />
+              </>
+            )}
+          </Card>
+          </section>
+        )}
+
+        <p className="mt-8 flex flex-wrap items-center gap-2 text-xs text-neutral-500"><CheckCircle2 size={14}/> Connected to DeepSpace authenticated server actions <ArrowRight size={14}/> Manual workflow execution and saved run history</p>
+      </div>
+
+      {createOpen && <FlowModal title="Create workflow" onClose={() => setCreateOpen(false)}>
+        <form className="space-y-4" onSubmit={e => void createWorkflow(e)}>
+          <TextField className="space-y-2" isRequired value={name} onChange={setName}><Label className="text-sm font-medium text-neutral-200">Workflow name</Label><Input className={field} maxLength={100} autoFocus placeholder="e.g. Weekly report automation"/></TextField>
+          <TextField className="space-y-2" value={description} onChange={setDescription}><Label className="text-sm font-medium text-neutral-200">Description</Label><TextArea className={field} maxLength={500} placeholder="What should this workflow do?" rows={3}/></TextField>
+          <button type="submit" disabled={busy} className={primary + ' w-full'}>{busy ? <Loader2 size={16} className="animate-spin"/> : <Plus size={16}/>} Create workflow</button>
+        </form>
+      </FlowModal>}
+      {stepOpen && <FlowModal title={editingStep ? "Edit workflow step" : "Add workflow step"} onClose={() => setStepOpen(false)}>
+        <form className="space-y-4" onSubmit={e => void saveStep(e)}>
+          <TextField className="space-y-2" isRequired value={stepLabel} onChange={setStepLabel}><Label className="text-sm font-medium text-neutral-200">Step name</Label><Input autoFocus className={field} maxLength={100} placeholder="e.g. Fetch sample data"/></TextField>
+          <label className="block space-y-2 text-sm">Step type<select className={field} value={stepType} onChange={e => { const next = e.target.value as StepType; setStepType(next); setStepConfig(next === 'http_get' ? 'https://jsonplaceholder.typicode.com/todos/1' : 'title') }}><option value="http_get">HTTP GET</option><option value="json_transform">JSON field selector</option></select></label>
+          <TextField className="space-y-2" isRequired value={stepConfig} onChange={setStepConfig}><Label className="text-sm font-medium text-neutral-200">{stepType === 'http_get' ? 'HTTPS URL' : 'JSON field name'}</Label><Input className={field} placeholder={stepType === 'http_get' ? 'https://api.github.com/users/octocat' : 'title'}/></TextField>
+          <p className="text-xs leading-relaxed text-neutral-500">{stepType === 'http_get' ? 'Allowed hosts: api.github.com or jsonplaceholder.typicode.com.' : 'Select a single JSON property. Running steps will be added in the next phase.'}</p>
+          <button className={primary + ' w-full'} type="submit" disabled={busy}>{busy ? <Loader2 size={16} className="animate-spin"/> : <Plus size={16}/>} {editingStep ? "Save changes" : "Add step"}</button>
+        </form>
+      </FlowModal>}
+    </div>
+  )
+}
+
+function Metric({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: number; tone: 'indigo' | 'emerald' | 'amber' }) {
+  const palette = {
+    indigo: 'border-indigo-400/15 bg-indigo-400/10 text-indigo-300',
+    emerald: 'border-emerald-400/15 bg-emerald-400/10 text-emerald-300',
+    amber: 'border-amber-400/15 bg-amber-400/10 text-amber-300',
+  }
+  return (
+    <div className="group flex min-h-[116px] items-center justify-between gap-4 rounded-[19px] border border-white/[0.085] bg-[#323232] px-5 py-5 transition-all hover:border-white/20 hover:bg-[#363636]">
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-neutral-400">{label}</p>
+        <p className="mt-1 text-[32px] font-bold leading-none tracking-tight text-white tabular-nums">{value}</p>
+      </div>
+      <span className={`flex size-12 shrink-0 items-center justify-center rounded-[15px] border ${palette[tone]}`}>{icon}</span>
+    </div>
+  )
+}
+function Loading({ label }: { label: string }) {
+  return <div role="status" className="flex items-center justify-center gap-3 p-14 text-sm text-neutral-400"><Loader2 size={19} className="animate-spin"/>{label}</div>
+}
+function Empty({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+  return <div className="flex min-h-44 flex-col items-center justify-center px-6 py-12 text-center"><div className="mb-4 rounded-2xl bg-white/5 p-4 text-indigo-300">{icon}</div><h3 className="text-sm font-semibold">{title}</h3><p className="mt-2 max-w-xs text-xs leading-relaxed text-neutral-500">{description}</p></div>
+}
+function FlowModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <HeroModal>
+      <HeroModal.Backdrop variant="blur" isOpen onOpenChange={isOpen => { if (!isOpen) onClose() }} className="bg-[#111111]/80">
+        <HeroModal.Container placement="center" size="md">
+          <HeroModal.Dialog aria-label={title} className="rounded-[26px] border border-white/10 bg-[#323232] p-0 text-neutral-100 shadow-[0_30px_100px_rgba(0,0,0,0.6)]">
+            <HeroModal.Header className="flex items-center justify-between border-b border-white/[0.07] px-7 py-5">
+              <HeroModal.Heading className="text-xl font-semibold">{title}</HeroModal.Heading>
+              <HeroModal.CloseTrigger className="rounded-lg p-2 text-neutral-400 hover:bg-white/5 hover:text-white" aria-label="Close"><X size={18}/></HeroModal.CloseTrigger>
+            </HeroModal.Header>
+            <HeroModal.Body className="px-7 py-6">{children}</HeroModal.Body>
+          </HeroModal.Dialog>
+        </HeroModal.Container>
+      </HeroModal.Backdrop>
+    </HeroModal>
+  )
+}

@@ -1,28 +1,32 @@
-/**
- * Placeholder home page — replace this with the app's real home.
- *
- * This is intentionally unstyled scaffolding, not a design to build on.
- * Design the app's own look (layout, theme tokens, typography) from your
- * product's point of view instead of extending this page.
- */
-
+import { Link } from 'react-router-dom'
+import { ArrowRight, GitBranch, Layers3, LockKeyhole } from 'lucide-react'
 import { useAuthProfileReady } from 'deepspace'
-import { APP_NAME } from '../../constants'
 
 export default function HomePage() {
   const { isSignedIn, user } = useAuthProfileReady({ requireUser: true })
-
   return (
-    <div className="flex min-h-full flex-col items-center justify-center gap-3 bg-background px-6 text-center text-foreground">
-      <h1 className="text-2xl font-semibold">{APP_NAME}</h1>
-      <p className="max-w-md text-sm text-muted-foreground">
-        This is a placeholder page. Replace <code>src/pages/(app)/home.tsx</code>{' '}
-        with the app&apos;s real home, and give the app its own theme in{' '}
-        <code>src/themes.css</code>.
-      </p>
-      {isSignedIn && user && (
-        <p className="text-sm text-muted-foreground">Signed in as {user.name ?? user.email}</p>
-      )}
-    </div>
+    <main className="flex min-h-full items-center justify-center bg-[#262626] px-6 py-16 text-slate-100">
+      <div className="w-full max-w-3xl text-center">
+        <span className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-xs font-semibold tracking-widest text-indigo-300">
+          <GitBranch size={14}/> FLOWPILOT / WORKFLOW STUDIO
+        </span>
+        <h1 className="mt-8 text-4xl font-bold leading-tight tracking-tight sm:text-6xl">
+          Automations, <span className="text-indigo-400">organized.</span>
+        </h1>
+        <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-slate-400">
+          Your workspace for building and managing repeatable workflows. Create pipelines,
+          configure steps and keep everything in one place.
+        </p>
+        {isSignedIn && user && <p className="mt-4 text-sm text-slate-500">Welcome back, {user.name || user.email}.</p>}
+        <Link to="/workflows" className="mt-9 inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-6 py-3 font-semibold text-white transition-colors hover:bg-indigo-400">
+          Open workflow studio <ArrowRight size={17}/>
+        </Link>
+        <div className="mt-14 grid gap-4 text-left sm:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-[#323232] p-6"><Layers3 size={24} className="text-indigo-400"/><h2 className="mt-4 font-semibold">Build workflow definitions</h2><p className="mt-2 text-sm leading-relaxed text-slate-400">Add HTTP GET and JSON field selection steps to each workflow.</p></div>
+          <div className="rounded-2xl border border-white/10 bg-[#323232] p-6"><LockKeyhole size={24} className="text-indigo-400"/><h2 className="mt-4 font-semibold">Your data, your workspace</h2><p className="mt-2 text-sm leading-relaxed text-slate-400">Authenticated DeepSpace actions validate ownership before editing records.</p></div>
+        </div>
+        <p className="mt-8 text-xs text-slate-500">Workflow execution and run history are planned for the next phase.</p>
+      </div>
+    </main>
   )
 }

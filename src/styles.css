@@ -1,4 +1,5 @@
 @import "tailwindcss" source(none);
+@import "@heroui/styles";
 @import "./themes.css";
 
 /* Scan local source + SDK components for Tailwind class usage */
@@ -18,26 +19,26 @@
  */
 @theme {
   /* shadcn core tokens — slate (default): neutral gray on near-black, indigo accent */
-  --color-background: #0a0a0a;
-  --color-foreground: #e8eaed;
-  --color-card: #161616;
+  --color-background: #262626;
+  --color-foreground: #f3f3f3;
+  --color-card: #323232;
   --color-card-foreground: #e8eaed;
-  --color-popover: #161616;
+  --color-popover: #323232;
   --color-popover-foreground: #e8eaed;
   --color-primary: #818cf8;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #1e1e1e;
+  --color-secondary: #393939;
   --color-secondary-foreground: #e8eaed;
-  --color-muted: #1e1e1e;
-  --color-muted-foreground: #9ca3af;
-  --color-accent: #262626;
+  --color-muted: #414141;
+  --color-muted-foreground: #a5a5a5;
+  --color-accent: #484848;
   --color-accent-foreground: #e8eaed;
   --color-destructive: #ef4444;
   --color-destructive-foreground: #ffffff;
-  --color-border: rgba(60, 64, 67, 0.6);
-  --color-input: rgba(60, 64, 67, 0.6);
+  --color-border: rgba(255, 255, 255, 0.11);
+  --color-input: rgba(255, 255, 255, 0.13);
   --color-ring: #818cf8;
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 
   /*
    * Map the rounded-* utilities onto --radius so a theme (or you) can change
@@ -88,8 +89,8 @@
      simply doesn't reference them. In every theme keep the panel reading as
      elevated: dark → panel lighter than shell; light → white panel on a
      faintly darker shell. */
-  --color-shell: #0a0a0a;
-  --color-shell-panel: #161616;
+  --color-shell: #262626;
+  --color-shell-panel: #323232;
 
   /* Animations */
   --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
@@ -164,15 +165,21 @@
   }
 
   body {
-    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    line-height: 1.5;
+    font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+    line-height: 1.65;
+    text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-size: 14px;
     color: var(--color-foreground);
   }
 
-  /* Scrollbar styling */
+  /* Controls inherit Cairo without changing monospace code previews. */
+  button, input, select, textarea {
+    font-family: inherit;
+  }
+
+    /* Scrollbar styling */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -231,4 +238,13 @@
   a, button, [role="button"], input, select, textarea {
     touch-action: manipulation;
   }
+}
+
+/* Subtle editor grid, independent of external canvas or graph libraries. */
+.workflow-canvas-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: center center;
 }
