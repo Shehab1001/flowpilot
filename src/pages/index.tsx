@@ -5,7 +5,7 @@
 import { Link } from 'react-router-dom'
 import {
   Activity, ArrowRight, ArrowUpRight, BookOpen, Check, CheckCircle2,
-  ChevronDown, Code2, GitBranch, Globe2, Layers3, LockKeyhole,
+  ChevronDown, Code2, GitBranch, Globe2, Layers3,
   MousePointer2, Play, ShieldCheck, Sparkles, Workflow, Zap,
 } from 'lucide-react'
 import { Seo } from '../components/Seo'
