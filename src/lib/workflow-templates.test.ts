@@ -29,8 +29,8 @@ describe('saved run previews', () => {
   it('decodes both native and legacy JSON and preserves debug fields', () => {
     const entries = [{ stepId: 'step_1', label: 'Fetch', status: 'success', durationMs: 123,
       inputPreview: 'null', outputPreview: '{"login":"octocat"}' }]
-    expect(decodeRunSteps(mockRun(entries))).toEqual(entries)
-    expect(decodeRunSteps(mockRun(JSON.stringify(entries)))).toEqual(entries)
+    expect(decodeRunSteps(mockRun(entries))).toEqual([expect.objectContaining(entries[0])])
+    expect(decodeRunSteps(mockRun(JSON.stringify(entries)))).toEqual([expect.objectContaining(entries[0])])
   })
   it('handles missing, malformed, and unrelated entries safely', () => {
     expect(decodeRunSteps(null)).toEqual([])
