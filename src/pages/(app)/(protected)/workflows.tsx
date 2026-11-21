@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Button, Card, Chip, Input, Label, Modal as HeroModal, TextArea, TextField } from '@heroui/react'
+import { Button, Card, Input, Label, Modal as HeroModal, TextArea, TextField } from '@heroui/react'
 import WorkflowCanvas from '../../../components/WorkflowCanvas'
 import WorkflowRunsPanel from '../../../components/WorkflowRunsPanel'
 import type { NodeLayout } from '../../../lib/workflow-layout'
 import {
-  Activity, ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Database, Sparkles,
+  Activity, ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Database, Sparkles, Clock3,
   GitBranch, Loader2, Plus, RefreshCw, Search, Trash2, Workflow as WorkflowIcon, X,
 } from 'lucide-react'
 import {
@@ -165,10 +165,10 @@ export default function WorkflowsPage() {
         {error && <div role="alert" className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError('')}><X size={16}/></button></div>}
         {notice && <div role="status" className="mb-5 flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300"><CheckCircle2 size={16}/>{notice}</div>}
 
-        {!current && <section className="mb-7 grid gap-4 sm:grid-cols-3" aria-label="Workspace statistics">
-          <Metric icon={<WorkflowIcon size={21}/>} label="Total workflows" value={workflows.length} />
-          <Metric icon={<Activity size={21}/>} label="Active" value={active} />
-          <Metric icon={<CirclePause size={21}/>} label="Draft & paused" value={workflows.length - active} />
+        {!current && <section className="mb-8 grid gap-3 sm:grid-cols-3" aria-label="Workspace statistics">
+          <Metric icon={<WorkflowIcon size={20}/>} label="Total workflows" value={workflows.length} tone="indigo" />
+          <Metric icon={<Activity size={20}/>} label="Active workflows" value={active} tone="emerald" />
+          <Metric icon={<CirclePause size={20}/>} label="Draft & paused" value={workflows.length - active} tone="amber" />
         </section>}
 
         {!current ? (
@@ -180,24 +180,52 @@ export default function WorkflowsPage() {
               </div>
               <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-neutral-400">{workflows.length} workflows</span>
             </div>
-          <Card className={panel + ' overflow-hidden'}>
-            <div className="border-b border-white/[0.07] p-5 sm:p-6">
-              <div className="flex items-center justify-between"><div><h2 className="text-base font-semibold">Browse and search</h2><p className="mt-1 text-xs text-neutral-500">Your saved automations</p></div><button className={secondary + ' !px-2 !py-2'} aria-label="Refresh workflows" disabled={loading} onClick={() => void refresh()}><RefreshCw size={16} className={loading ? 'animate-spin' : ''}/></button></div>
-              <div className="relative mt-4"><Search size={17} className="absolute left-3 top-3 text-neutral-500"/><input aria-label="Search workflows" className={field + ' !py-2.5 !pl-10'} placeholder="Search workflows..." value={search} onChange={e => setSearch(e.target.value)}/></div>
+          <div className="overflow-hidden rounded-[20px] border border-white/[0.08] bg-[#2e2e2e]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4">
+              <div>
+                <h3 className="text-sm font-semibold text-neutral-100">Workflow library</h3>
+                <p className="mt-0.5 text-xs text-neutral-500">All your automations in one place</p>
+              </div>
+              <button className={secondary + ' !px-3 !py-2'} aria-label="Refresh workflows" disabled={loading} onClick={() => void refresh()}>
+                <RefreshCw size={15} className={loading ? 'animate-spin' : ''}/> Refresh
+              </button>
             </div>
-            <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-3">
+            <div className="px-5 pt-4">
+              <div className="relative max-w-md">
+                <Search size={17} className="pointer-events-none absolute left-3 top-3 text-neutral-500"/>
+                <input aria-label="Search workflows" className={field + ' !py-2.5 !pl-10'}
+                  placeholder="Search workflows..." value={search} onChange={e => setSearch(e.target.value)}/>
+              </div>
+            </div>
+            <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-3">
               {loading ? <Loading label="Loading workflows..." /> : filtered.length === 0
                 ? <Empty icon={<Database size={26}/>} title={search ? 'No matching workflows' : 'No workflows yet'} description={search ? 'Try another search term.' : 'Create your first workflow to start building.'}/>
                 : filtered.map(w => (
-                  <button key={w.recordId} onClick={() => setSelected(w.recordId)} className={`min-h-32 w-full rounded-2xl border p-5 text-left transition-colors ${selected === w.recordId ? 'border-indigo-400/40 bg-gradient-to-r from-indigo-500/15 to-violet-500/[0.04] shadow-[inset_3px_0_0_#818cf8]' : 'border-white/[0.04] bg-white/[0.018] hover:border-white/15 hover:bg-white/[0.045]'}`}>
-                    <div className="flex items-center justify-between gap-3"><span className="truncate font-semibold">{w.data.name}</span><ChevronRight size={17} className="shrink-0 text-neutral-500"/></div>
-                    <p className="mt-2 line-clamp-2 text-xs text-neutral-400">{w.data.description || 'No description provided.'}</p>
-                    <Chip size="sm" variant="soft" color={w.data.status === "active" ? "success" : w.data.status === "paused" ? "warning" : "default"} className="mt-3 capitalize">{w.data.status}</Chip>
+                  <button key={w.recordId} type="button" onClick={() => setSelected(w.recordId)}
+                    className="group relative flex min-h-[176px] flex-col justify-between overflow-hidden rounded-2xl border border-white/[0.09] bg-[#363636] p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-400/40 hover:bg-[#3b3a43] hover:shadow-[0_14px_30px_rgba(0,0,0,.2)] focus-visible:outline-2 focus-visible:outline-indigo-400">
+                    <div>
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-indigo-400/15 bg-indigo-500/10 text-indigo-300">
+                          <WorkflowIcon size={19}/>
+                        </span>
+                        <ChevronRight size={19} className="text-neutral-500 transition-transform group-hover:translate-x-1 group-hover:text-indigo-300"/>
+                      </div>
+                      <h3 className="truncate text-[15px] font-bold text-neutral-100">{w.data.name}</h3>
+                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-neutral-400">{w.data.description || 'No description provided.'}</p>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between border-t border-white/[0.08] pt-3">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${w.data.status === 'active' ? 'bg-emerald-400/10 text-emerald-300' : w.data.status === 'paused' ? 'bg-amber-400/10 text-amber-300' : 'bg-white/[0.07] text-neutral-300'}`}>
+                        <span className={`size-1.5 rounded-full ${w.data.status === 'active' ? 'bg-emerald-400' : w.data.status === 'paused' ? 'bg-amber-400' : 'bg-neutral-400'}`}/>
+                        {w.data.status}
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+                        <Clock3 size={13}/> Open editor
+                      </span>
+                    </div>
                   </button>
                 ))}
             </div>
-          </Card>
-
+          </div>
 
           </section>
         ) : (
@@ -281,8 +309,21 @@ export default function WorkflowsPage() {
   )
 }
 
-function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
-  return <Card className={panel + ' group flex items-center gap-4 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-400/20 sm:p-6'}><div className="rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/10 p-3.5 text-indigo-300 ring-1 ring-inset ring-indigo-400/10">{icon}</div><div><p className="text-xs text-neutral-400">{label}</p><p className="mt-1 text-[30px] font-bold tracking-tight tabular-nums">{value}</p></div></Card>
+function Metric({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: number; tone: 'indigo' | 'emerald' | 'amber' }) {
+  const palette = {
+    indigo: 'border-indigo-400/15 bg-indigo-400/10 text-indigo-300',
+    emerald: 'border-emerald-400/15 bg-emerald-400/10 text-emerald-300',
+    amber: 'border-amber-400/15 bg-amber-400/10 text-amber-300',
+  }
+  return (
+    <div className="group flex min-h-[116px] items-center justify-between gap-4 rounded-[19px] border border-white/[0.085] bg-[#323232] px-5 py-5 transition-all hover:border-white/20 hover:bg-[#363636]">
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-neutral-400">{label}</p>
+        <p className="mt-1 text-[32px] font-bold leading-none tracking-tight text-white tabular-nums">{value}</p>
+      </div>
+      <span className={`flex size-12 shrink-0 items-center justify-center rounded-[15px] border ${palette[tone]}`}>{icon}</span>
+    </div>
+  )
 }
 function Loading({ label }: { label: string }) {
   return <div role="status" className="flex items-center justify-center gap-3 p-14 text-sm text-neutral-400"><Loader2 size={19} className="animate-spin"/>{label}</div>
