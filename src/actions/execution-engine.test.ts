@@ -24,6 +24,10 @@ describe('executeSteps', () => {
     expect(execution.steps.map(s => s.stepId)).toEqual(['fetch', 'transform'])
     expect(mock).toHaveBeenCalledWith('https://jsonplaceholder.typicode.com/todos/1', expect.objectContaining({ redirect: 'manual' }))
     expect(summarizeExecution(execution).stepsJson).toContain('transform')
+    const stored = JSON.parse(summarizeExecution(execution).stepsJson) as Array<{ inputPreview: string; outputPreview?: string }>
+    expect(stored[0].inputPreview).toBe('null')
+    expect(stored[1].inputPreview).toContain('FlowPilot')
+    expect(stored[1].outputPreview).toBe('"FlowPilot"')
   })
 
   it('executes a node with DeepSpace native JSON object config', async () => {
