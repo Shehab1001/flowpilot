@@ -16,6 +16,7 @@ export type StepExecution = {
   status: 'success' | 'failed'
   durationMs: number
   output?: unknown
+  input?: unknown
   error?: string
 }
 
@@ -132,6 +133,7 @@ export async function executeSteps(
 
   for (const step of sorted) {
     const stepStart = Date.now()
+    const input = output
     try {
       if (Date.now() - start >= MAX_MS) throw new Error('Workflow execution timed out')
       const config = parseConfig(step)
@@ -165,10 +167,10 @@ export async function executeSteps(
       } else {
         throw new Error('Unsupported step type')
       }
-      result.push({ stepId: step.recordId, label: step.data.label, type: step.data.type, status: 'success', durationMs: Date.now() - stepStart, output })
+      result.push({ stepId: step.recordId, label: step.data.label, type: step.data.type, status: 'success', durationMs: Date.now() - stepStart, input, output })
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Step failed'
-      result.push({ stepId: step.recordId, label: step.data.label, type: step.data.type, status: 'failed', durationMs: Date.now() - stepStart, error: detail })
+      result.push({ stepId: step.recordId, label: step.data.label, type: step.data.type, status: 'failed', durationMs: Date.now() - stepStart, input, error: detail })
       return { status: 'failed', output: null, steps: result, error: detail, durationMs: Date.now() - start }
     }
   }
@@ -187,6 +189,7 @@ export function summarizeExecution(execution: Execution): {
     stepsJson: JSON.stringify(execution.steps.map(step => ({
       stepId: step.stepId, label: step.label, type: step.type,
       status: step.status, durationMs: step.durationMs,
+      inputPreview: truncate(step.input),
       ...(step.error ? { error: step.error } : {}),
       ...(step.status === 'success' ? { outputPreview: truncate(step.output) } : {}),
     }))),
