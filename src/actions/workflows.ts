@@ -1,5 +1,6 @@
 import { stepConfigObject } from '../lib/stored-json'
 import { validateLayoutPayload } from '../lib/workflow-layout'
+import { findWorkflowTemplate } from '../lib/workflow-templates'
 /**
  * FlowPilot authenticated actions.
  *
@@ -83,6 +84,51 @@ const createWorkflow: ActionHandler<Env> = async ({ userId, params, tools }) => 
     description,
     status: 'draft',
   })
+}
+
+/**
+ * Atomic-as-possible template creation via the same trusted collection actions.
+ * Template definitions are server-owned; callers can only choose a fixed ID.
+ * Clean up all created records if any dependent write fails.
+ */
+const createWorkflowFromTemplate: ActionHandler<Env> = async ({ userId, params, tools }) => {
+  const template = findWorkflowTemplate(params.templateId)
+  if (!template) return bad('Unknown workflow template')
+  const created = await tools.create('workflows', {
+    ownerId: userId,
+    name: template.name,
+    description: template.description,
+    status: 'draft',
+  })
+  if (!created.success) return created
+  const workflowId = created.data.recordId
+  const stepIds: string[] = []
+  try {
+    for (const [position, step] of template.steps.entries()) {
+      const config = validateConfig(step.type, step.config)
+      if (!config) throw new Error('Template contains an invalid step configuration')
+      const result = await tools.create('workflow_steps', {
+        workflowId, ownerId: userId, label: step.label,
+        type: step.type, position, config,
+      })
+      if (!result.success) throw new Error(result.error || 'Could not create template steps')
+      stepIds.push(result.data.recordId)
+    }
+    return { success: true as const, data: { workflowId } }
+  } catch (error) {
+    let cleanupFailed = false
+    for (const id of stepIds.reverse()) {
+      const removed = await tools.remove('workflow_steps', id)
+      if (!removed.success) cleanupFailed = true
+    }
+    const removedWorkflow = await tools.remove('workflows', workflowId)
+    if (!removedWorkflow.success) cleanupFailed = true
+    if (cleanupFailed) {
+      console.error('[FlowPilot] Template creation cleanup incomplete', workflowId)
+      return bad('Template setup failed and cleanup is incomplete. Please contact support.')
+    }
+    return bad(error instanceof Error ? error.message : 'Template setup failed')
+  }
 }
 
 const listWorkflows: ActionHandler<Env> = async ({ userId, tools }) =>
@@ -230,6 +276,6 @@ const deleteStep: ActionHandler<Env> = async ({ userId, params, tools }) => {
 }
 
 export const workflowActions: Record<string, ActionHandler<Env>> = {
-  createWorkflow, listWorkflows, updateWorkflow, deleteWorkflow,
+  createWorkflow, createWorkflowFromTemplate, listWorkflows, updateWorkflow, deleteWorkflow,
   listSteps, createStep, updateStep, deleteStep,
 }
