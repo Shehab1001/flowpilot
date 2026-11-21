@@ -8,6 +8,19 @@ import { PRERENDER_ROUTES, render } from './prerender-entry'
  * `window`, `localStorage`, or `matchMedia` during render would be a failed
  * deploy. Runs in Node in about a second (`npm run test:unit`).
  */
+describe('FlowPilot marketing landing', () => {
+  it('renders a meaningful static product page with a working app CTA', () => {
+    const html = render('/')
+    expect(html).toContain('Build workflows.')
+    expect(html).toContain('Visual workflow builder')
+    expect(html).toContain('Step-by-step debugging')
+    expect(html).toContain('Ready-to-run templates')
+    expect(html).toContain('href="/workflows"')
+    expect(html).not.toContain('static front door')
+    expect(html).not.toContain('A DeepSpace app with a static')
+  })
+})
+
 describe('public pages prerender', () => {
   it.each(PRERENDER_ROUTES)('%s renders to static HTML with a title and a body', (route) => {
     const html = render(route)
