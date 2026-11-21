@@ -15,6 +15,7 @@ export interface Workflow {
   name: string
   description: string
   status: WorkflowStatus
+  nodeLayout?: unknown
 }
 export interface WorkflowStep {
   ownerId: string
