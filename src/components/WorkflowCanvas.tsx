@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent, type WheelEvent } from 'react'
-import { Check, Code2, Focus, Globe2, Grip, Minus, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Check, CheckCircle2, Code2, Focus, Globe2, Grip, Info, Minus, Pencil, Plus, Trash2, XCircle } from 'lucide-react'
+import type { StepRunPreview } from '../lib/workflow-run-preview'
 import { decodeStepConfig, type StoredRecord, type WorkflowStep } from '../lib/workflow-api'
 import { resolveNodePositions, type NodeLayout, type NodePosition } from '../lib/workflow-layout'
 
@@ -7,6 +8,9 @@ type Props = {
   workflowId?: string
   steps: StoredRecord<WorkflowStep>[]
   nodeLayout?: unknown
+  runSteps?: StepRunPreview[]
+  selectedStepId?: string | null
+  onSelectStep?: (stepId: string) => void
   disabled?: boolean
   onAdd: () => void
   onEdit: (step: StoredRecord<WorkflowStep>) => void
@@ -37,7 +41,7 @@ type Drag = {
 
 /** Editable spatial layout. Edges reflect execution order, not arbitrary routing. */
 export default function WorkflowCanvas({
-  workflowId, steps, nodeLayout, disabled = false, onAdd, onEdit, onDelete, onSaveLayout,
+  workflowId, steps, nodeLayout, runSteps = [], selectedStepId, onSelectStep, disabled = false, onAdd, onEdit, onDelete, onSaveLayout,
 }: Props) {
   const ordered = [...steps].sort((a, b) => a.data.position - b.data.position)
   const [positions, setPositions] = useState<NodeLayout>(() => resolveNodePositions(ordered, nodeLayout))
@@ -179,13 +183,21 @@ export default function WorkflowCanvas({
           {ordered.map((step, index) => {
             const p = positionOf(step.recordId, index)
             const http = step.data.type === 'http_get'
+            const result = runSteps.find(item => item.stepId === step.recordId)
+            const border = selectedStepId === step.recordId
+              ? 'border-indigo-300 ring-2 ring-indigo-400/30'
+              : result?.status === 'success'
+                ? 'border-emerald-400/65'
+                : result?.status === 'failed'
+                  ? 'border-rose-400/75'
+                  : 'border-white/15'
             return (
               <article key={step.recordId} aria-label={`Node ${step.data.label}`}
                 onPointerDown={event => { event.stopPropagation(); pointerDown(event, 'node', step.recordId) }}
                 onPointerMove={pointerMove} onPointerUp={event => { void pointerUp(event) }}
                 onPointerCancel={() => { drag.current = null }}
                 style={{ left: p.x, top: p.y, width: NODE_WIDTH, height: NODE_HEIGHT, touchAction: 'none' }}
-                className="absolute cursor-grab rounded-2xl border border-white/15 bg-[#373737] p-4 shadow-[0_12px_24px_rgba(0,0,0,.24)] hover:border-indigo-400/60 active:cursor-grabbing">
+                className={`absolute cursor-grab rounded-2xl border bg-[#373737] p-4 shadow-[0_12px_24px_rgba(0,0,0,.24)] hover:border-indigo-400/60 active:cursor-grabbing ${border}`}>
                 <span className="absolute -left-2 top-1/2 size-3 -translate-y-1/2 rounded-full border-[3px] border-[#292929] bg-indigo-400" aria-hidden/>
                 <span className="absolute -right-2 top-1/2 size-3 -translate-y-1/2 rounded-full border-[3px] border-[#292929] bg-indigo-400" aria-hidden/>
                 <div className="flex items-start gap-3">
@@ -198,11 +210,20 @@ export default function WorkflowCanvas({
                       <span className="rounded-full border border-white/10 px-1.5 py-0.5 text-[10px] text-neutral-400">{http ? 'HTTP GET' : 'JSON transform'}</span>
                     </div>
                     <h4 className="truncate text-sm font-semibold text-neutral-100">{step.data.label}</h4>
+                    {result && <p className={`mt-1 flex items-center gap-1 text-[11px] ${result.status === 'success' ? 'text-emerald-300' : 'text-rose-300'}`}>
+                      {result.status === 'success' ? <CheckCircle2 size={12}/> : <XCircle size={12}/>}
+                      {result.status === 'success' ? 'Succeeded' : 'Failed'} · {result.durationMs} ms
+                    </p>}
                     <p className="mt-2 truncate font-mono text-[11px] text-neutral-400" title={decodeStepConfig(step.data)}>{decodeStepConfig(step.data)}</p>
                   </div>
                   <Grip size={14} className="shrink-0 text-neutral-500" aria-hidden/>
                 </div>
                 <div className="absolute inset-x-4 bottom-3 flex items-center justify-end gap-2 border-t border-white/10 pt-2">
+                  {onSelectStep && <button type="button" onPointerDown={event => event.stopPropagation()}
+                    onClick={() => onSelectStep(step.recordId)} aria-label={`Inspect ${step.data.label}`}
+                    className="flex items-center gap-1 rounded-lg border border-indigo-400/20 px-2 py-1.5 text-xs text-indigo-200 hover:bg-indigo-400/10">
+                    <Info size={13}/> Inspect
+                  </button>}
                   <button type="button" disabled={disabled || saving} onPointerDown={event => event.stopPropagation()}
                     onClick={() => onEdit(step)} aria-label={`Edit ${step.data.label}`}
                     className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-neutral-200 hover:bg-indigo-400/10 disabled:opacity-50"><Pencil size={13}/>Edit</button>
