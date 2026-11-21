@@ -82,9 +82,35 @@ export type FetchRecovery = (
   cause: unknown,
 ) => Promise<Response>
 
-async function readApiResponse(response: Response): Promise<unknown> {
+function headersForApi(hostname: string): Record<string, string> {
+  if (hostname === 'api.github.com') return {
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'FlowPilot-Workflow-Runner',
+    'X-GitHub-Api-Version': '2022-11-28',
+  }
+  return { Accept: 'application/json' }
+}
+
+function httpFailureMessage(response: Response, hostname: string): string {
+  const status = response.status
+  if (hostname === 'api.github.com' && (status === 403 || status === 429)) {
+    const remaining = response.headers.get('x-ratelimit-remaining')
+    if (remaining === '0') {
+      const epoch = Number(response.headers.get('x-ratelimit-reset'))
+      const reset = Number.isSafeInteger(epoch) && epoch > 0 && epoch < 10_000_000_000
+        ? `; resets at ${new Date(epoch * 1000).toISOString()}` : ''
+      return `GitHub API rate limit exceeded (HTTP ${status})${reset}`
+    }
+    if (!response.headers.has('x-github-request-id') && remaining === null)
+      return `HTTP ${status} calling GitHub endpoint; response has no GitHub rate-limit headers (check upstream proxy or access restrictions)`
+    return `GitHub API denied the request (HTTP ${status}); check API access and secondary rate limits`
+  }
+  return `HTTP GET returned status ${status}`
+}
+
+async function readApiResponse(response: Response, hostname: string): Promise<unknown> {
   if (response.status >= 300 && response.status < 400) throw new Error('HTTP redirects are blocked')
-  if (!response.ok) throw new Error(`HTTP GET returned status ${response.status}`)
+  if (!response.ok) throw new Error(httpFailureMessage(response, hostname))
   const mime = response.headers.get('content-type') || ''
   if (!mime.toLowerCase().includes('json')) throw new Error('API response must be JSON')
   return readLimitedJson(response)
@@ -117,16 +143,16 @@ export async function executeSteps(
         const options: RequestInit = {
           method: 'GET', redirect: 'manual',
           signal: AbortSignal.timeout(remaining),
-          headers: { Accept: 'application/json' },
+          headers: headersForApi(url.hostname),
         }
         try {
           // Both fetch() and response.body reads can fail in local workerd.
-          output = await readApiResponse(await fetchImpl(url.toString(), options))
+          output = await readApiResponse(await fetchImpl(url.toString(), options), url.hostname)
         } catch (cause) {
           // Ordinary HTTP errors, invalid JSON, oversized bodies and timeouts
           // must remain failures; only opaque workerd network faults may retry.
           if (!recoverFetch || !isOpaqueWorkerdError(cause)) throw cause
-          output = await readApiResponse(await recoverFetch(url.toString(), options, cause))
+          output = await readApiResponse(await recoverFetch(url.toString(), options, cause), url.hostname)
         }
       } else if (step.data.type === 'json_transform') {
         if (typeof config.field !== 'string' || !/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(config.field) || config.field.length > 120)
