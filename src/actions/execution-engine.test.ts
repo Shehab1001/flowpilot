@@ -106,7 +106,7 @@ describe('executeSteps', () => {
     ], network as unknown as typeof fetch, recovery)
     expect(result.status).toBe('failed')
     expect(result.error).toContain('404')
-    expect(recovery).toHaveBeenCalledTimes(1)
+    expect(recovery).not.toHaveBeenCalled()
   })
 
   it('rejects empty workflows', async () => {
