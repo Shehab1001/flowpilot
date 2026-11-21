@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Button, Card, Chip, Input, Label, Modal as HeroModal, TextArea, TextField } from '@heroui/react'
 import WorkflowCanvas from '../../../components/WorkflowCanvas'
 import WorkflowRunsPanel from '../../../components/WorkflowRunsPanel'
+import type { NodeLayout } from '../../../lib/workflow-layout'
 import {
   Activity, ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, CirclePause, Database, Sparkles,
   GitBranch, Loader2, Plus, RefreshCw, Search, Trash2, Workflow as WorkflowIcon, X,
@@ -224,8 +225,16 @@ export default function WorkflowsPage() {
                 <div className="mt-7 flex items-center justify-between gap-3"><div><h3 className="font-semibold">Workflow steps</h3><p className="mt-1 text-xs text-neutral-500">Build your pipeline, one step at a time</p></div><button className={secondary} onClick={() => openStepEditor()}><Plus size={16}/> Add step</button></div>
                 {stepsLoading ? <Loading label="Loading steps..." /> : (
                   <WorkflowCanvas
+                    workflowId={current.recordId}
                     steps={steps}
-                    disabled={busy}
+                    nodeLayout={current.data.nodeLayout}
+                    disabled={busy || running}
+                    onSaveLayout={async (nodeLayout: NodeLayout) => {
+                      const workflowId = current.recordId
+                      await callWorkflowAction('updateWorkflow', { workflowId, nodeLayout })
+                      setWorkflows(previous => previous.map(item => item.recordId === workflowId
+                        ? { ...item, data: { ...item.data, nodeLayout } } : item))
+                    }}
                     onAdd={() => openStepEditor()}
                     onEdit={openStepEditor}
                     onDelete={step => {
