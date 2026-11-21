@@ -60,7 +60,6 @@ export default function WorkflowCanvas({
     setSaveError('')
   // Refresh when workflow changes or new/deleted steps arrive. Do not
   // reset dragged positions on unrelated parent updates.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflowId, stepIds])
 
   function pointerDown(event: PointerEvent<HTMLElement>, kind: Drag['kind'], nodeId?: string) {
