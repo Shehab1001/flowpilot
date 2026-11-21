@@ -1,4 +1,5 @@
 import { stepConfigObject } from '../lib/stored-json'
+import { validateLayoutPayload } from '../lib/workflow-layout'
 /**
  * FlowPilot authenticated actions.
  *
@@ -103,6 +104,18 @@ const updateWorkflow: ActionHandler<Env> = async ({ userId, params, tools }) => 
   if (params.status !== undefined) {
     if (!['draft', 'active', 'paused'].includes(String(params.status))) return bad('Invalid status')
     patch.status = params.status
+  }
+  if (params.nodeLayout !== undefined) {
+    const serialized = validateLayoutPayload(params.nodeLayout)
+    if (!serialized) return bad('Invalid node layout')
+    const layout = JSON.parse(serialized) as Record<string, unknown>
+    const steps = await tools.query<WorkflowStep>('workflow_steps', {
+      where: { workflowId: workflow.workflowId, ownerId: userId }, limit: 21,
+    })
+    if (!steps.success) return steps
+    const allowed = new Set(steps.data.records.map(step => step.recordId))
+    if (Object.keys(layout).some(id => !allowed.has(id))) return bad('Node layout contains unknown steps')
+    patch.nodeLayout = layout
   }
   if (!Object.keys(patch).length) return bad('No editable fields provided')
   return tools.update('workflows', workflow.workflowId, patch)
