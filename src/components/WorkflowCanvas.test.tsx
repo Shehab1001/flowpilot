@@ -34,6 +34,19 @@ describe('WorkflowCanvas', () => {
     expect(html).toContain('Drag cards to arrange')
   })
 
+  it('highlights a succeeded node and exposes its inspector action', () => {
+    const html = renderToStaticMarkup(
+      <WorkflowCanvas steps={[step('first', 'Fetch', 0)]}
+        runSteps={[{ stepId: 'first', label: 'Fetch', status: 'success', durationMs: 123, outputPreview: '"octocat"' }]}
+        selectedStepId="first" onSelectStep={() => {}}
+        onAdd={() => {}} onEdit={() => {}} onDelete={() => {}} />,
+    )
+    expect(html).toContain('Inspect Fetch')
+    expect(html).toContain('Succeeded')
+    expect(html).toContain('123 ms')
+    expect(html).toContain('border-indigo-300')
+  })
+
   it('renders an empty canvas with a clear next action', () => {
     const html = renderToStaticMarkup(
       <WorkflowCanvas steps={[]} onAdd={() => {}} onEdit={() => {}} onDelete={() => {}} />,
