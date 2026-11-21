@@ -26,23 +26,28 @@ export function isOpaqueWorkerdError(error: unknown): boolean {
   return error instanceof Error && /internal error; reference\s*=\s*[a-z0-9]+/i.test(error.message)
 }
 
-export const fetchWithLocalDevFallback: typeof fetch = async (input, init) => {
+/**
+ * Called after the *whole* direct HTTP operation fails (including streaming
+ * the body), not merely after fetch() resolves. Never retry an HTTP status,
+ * JSON parse error, size limit, timeout, or redirect response.
+ */
+export async function recoverWorkerdFetch(
+  url: string,
+  init: RequestInit,
+  cause: unknown,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Response> {
+  if (!import.meta.env.DEV || !isOpaqueWorkerdError(cause)) throw cause
+  const local = devProxyUrl(url)
+  if (!local) throw cause
+
+  const hostname = new URL(url).hostname
+  console.warn(`[FlowPilot] local Worker outbound HTTPS failed for ${hostname}; retrying via fixed-target Vite proxy`)
   try {
-    return await fetch(input, init)
-  } catch (error) {
-    if (!import.meta.env.DEV || !isOpaqueWorkerdError(error)) throw error
-    const url = typeof input === 'string' ? input
-      : input instanceof URL ? input.toString() : input.url
-    const local = devProxyUrl(url)
-    if (!local) throw error
-    const hostname = new URL(url).hostname
-    console.warn(`[FlowPilot] workerd HTTPS fetch failed for ${hostname}; retrying via fixed-target local Vite proxy.`)
-    try {
-      // Preserve the timeout signal, request method and blocked-redirect policy.
-      return await fetch(local, { ...init, redirect: 'manual' })
-    } catch {
-      // Give a useful clue without disclosing untrusted URLs or internal tokens.
-      throw new Error(`Local workerd outbound HTTPS failed for ${hostname}. Dev proxy also unavailable; check Vite on port 5173 or test this request after deployment.`)
-    }
+    return await fetchImpl(local, { ...init, redirect: 'manual' })
+  } catch (fallbackError) {
+    const reason = fallbackError instanceof Error ? fallbackError.message : 'Unknown network error'
+    console.error('[FlowPilot] local Vite proxy request failed:', reason)
+    throw new Error(`Local HTTPS failed for ${hostname}; the Vite proxy is unavailable. Verify the dev server is running and the fixed-target route is reachable.`)
   }
 }
