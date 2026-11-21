@@ -28,6 +28,10 @@ describe('WorkflowCanvas', () => {
     expect(html).toContain('Edit Second')
     expect(html).toContain('Design canvas')
     expect(html).toContain('Add next step')
+    expect(html).toContain('Draggable workflow canvas')
+    expect(html).toContain('Zoom in')
+    expect(html).toContain('Reset view')
+    expect(html).toContain('Drag cards to arrange')
   })
 
   it('renders an empty canvas with a clear next action', () => {
