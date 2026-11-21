@@ -40,6 +40,31 @@ describe('FlowPilot owner authorization', () => {
     expect(result.success).toBe(true)
     expect(tools.create).toHaveBeenCalledWith('workflows', expect.objectContaining({ ownerId: 'user_b', status: 'draft' }))
   })
+  it('rejects node layouts containing steps outside the authenticated workflow', async () => {
+    const ownWorkflow = { ...workflow, data: { ...workflow.data, ownerId: 'user_b' } }
+    const { ctx, tools } = makeContext(
+      { workflowId: 'wf_1', nodeLayout: { someone_elses_step: { x: 200, y: 300 } } },
+      { get: vi.fn(async () => ({ success: true, data: { record: ownWorkflow } })) },
+    )
+    const result = await workflowActions.updateWorkflow(ctx)
+    expect(result.success).toBe(false)
+    expect(tools.update).not.toHaveBeenCalled()
+  })
+
+  it('saves only valid owned node coordinates without modifying execution positions', async () => {
+    const ownWorkflow = { ...workflow, data: { ...workflow.data, ownerId: 'user_b' } }
+    const { ctx, tools } = makeContext(
+      { workflowId: 'wf_1', nodeLayout: { step_1: { x: 240, y: 300 } } },
+      {
+        get: vi.fn(async () => ({ success: true, data: { record: ownWorkflow } })),
+        query: vi.fn(async () => ({ success: true, data: { records: [{ recordId: 'step_1', data: { ownerId: 'user_b', workflowId: 'wf_1' } }], count: 1 } })),
+      },
+    )
+    const result = await workflowActions.updateWorkflow(ctx)
+    expect(result.success).toBe(true)
+    expect(tools.update).toHaveBeenCalledWith('workflows', 'wf_1', { nodeLayout: { step_1: { x: 240, y: 300 } } })
+  })
+
   it('rejects invalid or non-allowlisted URL config', async () => {
     const { ctx, tools } = makeContext(
       { workflowId: 'wf_1', label: 'Fetch', type: 'http_get', position: 0, config: { url: 'http://localhost:3000' } },
