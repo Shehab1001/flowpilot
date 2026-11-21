@@ -6,7 +6,7 @@
 
 **Build API workflows on a drag-and-drop canvas. Execute them securely. Inspect every step.**
 
-[Explore features](#features) · [Quick start](#quick-start) · [Architecture](#architecture) · [Security](#security-and-execution-limits)
+[🚀 Live demo](https://flowpilot-shehab.app.space/) · [Features](#features) · [Quick start](#quick-start) · [Architecture](#architecture) · [Security](#security-and-execution-limits)
 
 </div>
 
@@ -169,7 +169,6 @@ npm --version
 ```bash
 git clone https://github.com/Shehab1001/flowpilot.git
 cd flowpilot
-git switch dev
 
 npm ci
 npx deepspace auth login
@@ -178,7 +177,7 @@ npm run dev
 
 Open **http://localhost:5173/** for the landing page, then enter **Workflow Studio**.
 
-> The `dev` branch contains the features documented here. If your checkout is on another branch, switch to `dev` before installing or running the project.
+**Want to try FlowPilot without installing anything?** Open the [live application](https://flowpilot-shehab.app.space/) and sign in to explore the workflow studio.
 
 ### Optional: Docker on Windows
 
@@ -233,7 +232,7 @@ npm run build
 npm run test
 ```
 
-These are **commands to run**, not a claim that the current branch has passed all checks or that production has been verified.
+Run these checks before each deployment. A successful build and a reachable production URL do not, by themselves, prove every workflow has passed end-to-end testing.
 
 ## Security and execution limits
 
@@ -262,24 +261,24 @@ These controls reduce risk but **do not constitute a comprehensive SSRF security
 - Arbitrary endpoints, secrets/credential integrations, or HTTP POST nodes
 - Streaming live per-node animations while an execution is running
 
-Potential next steps include **production verification**, expanded integration tests, safer credential handling, more node types, and editable execution graphs. These are **future improvements**, not implemented features.
+Potential next steps include **production end-to-end smoke testing**, expanded integration tests, safer credential handling, more node types, and editable execution graphs. These are **future improvements**, not implemented features.
 
 ## Deployment
 
-FlowPilot is configured for the **DeepSpace / Cloudflare Workers** deployment pipeline.
+FlowPilot is available online at **[flowpilot-shehab.app.space](https://flowpilot-shehab.app.space/)** and uses the **DeepSpace / Cloudflare Workers** deployment pipeline.
 
-After signing in and passing the checks above:
+To deploy updates, sign in and run the checks above, then:
 
 ```bash
 npm run deploy
 ```
 
-Deploying requires an appropriately configured DeepSpace application and account permissions. **No public production URL is claimed in this README**; add the verified deployment link after publishing and testing the live app.
+Deploying requires a configured DeepSpace application and account permissions. After each release, verify the [live site](https://flowpilot-shehab.app.space/), sign-in, workflow execution, and saved run history.
 
 ## Project and references
 
+- **Live application:** https://flowpilot-shehab.app.space/
 - **Source repository:** https://github.com/Shehab1001/flowpilot
-- **Development branch:** https://github.com/Shehab1001/flowpilot/tree/dev
 - **DeepSpace documentation:** https://docs.deep.space/
 - **Cloudflare Workers:** https://developers.cloudflare.com/workers/
 - **React:** https://react.dev/
