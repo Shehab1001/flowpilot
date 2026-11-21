@@ -109,6 +109,49 @@ describe('executeSteps', () => {
     expect(recovery).not.toHaveBeenCalled()
   })
 
+  it('sends GitHub REST headers directly, without relying on the local proxy', async () => {
+    const network = vi.fn(async () => jsonResponse({ login: 'octocat' }))
+    const result = await executeSteps([
+      step('github', 0, 'http_get', { url: 'https://api.github.com/users/octocat' }),
+      step('login', 1, 'json_transform', { field: 'login' }),
+    ], network as unknown as typeof fetch)
+    expect(result.status).toBe('success')
+    expect(result.output).toBe('octocat')
+    expect(network).toHaveBeenCalledWith(
+      'https://api.github.com/users/octocat',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'User-Agent': 'FlowPilot-Workflow-Runner',
+          'X-GitHub-Api-Version': '2022-11-28',
+          Accept: 'application/vnd.github+json',
+        }),
+      }),
+    )
+  })
+
+  it('explains GitHub 403 when rate limit is exhausted', async () => {
+    const network = vi.fn(async () => new Response(null, {
+      status: 403,
+      headers: { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '1790000000' },
+    }))
+    const result = await executeSteps([
+      step('github', 0, 'http_get', { url: 'https://api.github.com/users/octocat' }),
+    ], network as unknown as typeof fetch)
+    expect(result.status).toBe('failed')
+    expect(result.error).toContain('rate limit exceeded')
+    expect(result.error).toContain('HTTP 403')
+  })
+
+  it('distinguishes upstream HTTP 403 from identified GitHub rate limiting', async () => {
+    const network = vi.fn(async () => new Response(null, { status: 403 }))
+    const result = await executeSteps([
+      step('github', 0, 'http_get', { url: 'https://api.github.com/users/octocat' }),
+    ], network as unknown as typeof fetch)
+    expect(result.status).toBe('failed')
+    expect(result.error).toContain('upstream proxy')
+    expect(result.error).toContain('403')
+  })
+
   it('rejects empty workflows', async () => {
     const execution = await executeSteps([])
     expect(execution.status).toBe('failed')
