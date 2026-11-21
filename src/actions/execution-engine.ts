@@ -1,4 +1,5 @@
 import { stepConfigObject } from '../lib/stored-json'
+import { isOpaqueWorkerdError } from './dev-fetch-fallback'
 /**
  * Sequential workflow execution. No arbitrary user URLs, JS evaluation or redirects.
  * Only explicitly allowlisted HTTPS hosts can be called.
@@ -122,7 +123,9 @@ export async function executeSteps(
           // Both fetch() and response.body reads can fail in local workerd.
           output = await readApiResponse(await fetchImpl(url.toString(), options))
         } catch (cause) {
-          if (!recoverFetch) throw cause
+          // Ordinary HTTP errors, invalid JSON, oversized bodies and timeouts
+          // must remain failures; only opaque workerd network faults may retry.
+          if (!recoverFetch || !isOpaqueWorkerdError(cause)) throw cause
           output = await readApiResponse(await recoverFetch(url.toString(), options, cause))
         }
       } else if (step.data.type === 'json_transform') {
