@@ -65,6 +65,43 @@ describe('FlowPilot owner authorization', () => {
     expect(tools.update).toHaveBeenCalledWith('workflows', 'wf_1', { nodeLayout: { step_1: { x: 240, y: 300 } } })
   })
 
+  it('creates a complete owner-bound demo workflow from a trusted template ID', async () => {
+    const { ctx, tools } = makeContext({ templateId: 'github-profile' })
+    const result = await workflowActions.createWorkflowFromTemplate(ctx)
+    expect(result.success).toBe(true)
+    expect(tools.create).toHaveBeenCalledTimes(3)
+    expect(tools.create).toHaveBeenNthCalledWith(1, 'workflows', expect.objectContaining({
+      name: 'GitHub profile lookup', ownerId: 'user_b', status: 'draft',
+    }))
+    expect(tools.create).toHaveBeenNthCalledWith(2, 'workflow_steps', expect.objectContaining({
+      ownerId: 'user_b', workflowId: 'created_1', position: 0, type: 'http_get',
+    }))
+    expect(tools.create).toHaveBeenNthCalledWith(3, 'workflow_steps', expect.objectContaining({
+      ownerId: 'user_b', workflowId: 'created_1', position: 1, type: 'json_transform',
+    }))
+  })
+
+  it('rejects unknown template IDs before writing any records', async () => {
+    const { ctx, tools } = makeContext({ templateId: 'made-up', steps: [{ config: { url: 'http://localhost' } }] })
+    const result = await workflowActions.createWorkflowFromTemplate(ctx)
+    expect(result.success).toBe(false)
+    expect(tools.create).not.toHaveBeenCalled()
+  })
+
+  it('cleans up a partially created template on dependent step failure', async () => {
+    let writes = 0
+    const create = vi.fn(async () => {
+      writes++
+      if (writes === 3) return { success: false as const, error: 'Step write failed' }
+      return { success: true as const, data: { recordId: writes === 1 ? 'wf_created' : 'step_created' } }
+    })
+    const { ctx, tools } = makeContext({ templateId: 'github-profile' }, { create })
+    const result = await workflowActions.createWorkflowFromTemplate(ctx)
+    expect(result.success).toBe(false)
+    expect(tools.remove).toHaveBeenCalledWith('workflow_steps', 'step_created')
+    expect(tools.remove).toHaveBeenCalledWith('workflows', 'wf_created')
+  })
+
   it('rejects invalid or non-allowlisted URL config', async () => {
     const { ctx, tools } = makeContext(
       { workflowId: 'wf_1', label: 'Fetch', type: 'http_get', position: 0, config: { url: 'http://localhost:3000' } },
