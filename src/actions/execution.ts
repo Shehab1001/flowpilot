@@ -2,7 +2,7 @@
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { executeSteps, summarizeExecution, type ExecutableStep } from './execution-engine'
-import { fetchWithLocalDevFallback } from './dev-fetch-fallback'
+import { recoverWorkerdFetch } from './dev-fetch-fallback'
 
 type Workflow = Record<string, unknown> & { ownerId: string; name: string; status: string }
 type StepData = Record<string, unknown> & { ownerId: string; workflowId: string; label: string; type: 'http_get' | 'json_transform'; position: number; config: string }
@@ -32,7 +32,7 @@ const runWorkflow: ActionHandler<Env> = async ({ params, tools, userId }) => {
   if (queried.data.records.some(step => step.data.workflowId !== owned.id || step.data.ownerId !== userId))
     return bad('Unexpected workflow step ownership')
   const startedAt = new Date().toISOString()
-  const execution = await executeSteps(queried.data.records as ExecutableStep[], fetchWithLocalDevFallback)
+  const execution = await executeSteps(queried.data.records as ExecutableStep[], fetch, recoverWorkerdFetch)
   const summary = summarizeExecution(execution)
   const record: RunData = {
     ownerId: userId, workflowId: owned.id, status: execution.status,
