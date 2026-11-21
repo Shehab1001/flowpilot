@@ -165,8 +165,8 @@
   }
 
   body {
-    font-family: Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    line-height: 1.5;
+    font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+    line-height: 1.65;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -174,7 +174,12 @@
     color: var(--color-foreground);
   }
 
-  /* Scrollbar styling */
+  /* Controls inherit Cairo without changing monospace code previews. */
+  button, input, select, textarea {
+    font-family: inherit;
+  }
+
+    /* Scrollbar styling */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
