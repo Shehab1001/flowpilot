@@ -69,9 +69,30 @@ async function readLimitedJson(response: Response): Promise<unknown> {
 }
 
 /** A run has an overall 25s deadline and each HTTP request is capped at 8s. */
+/**
+ * A recovery transport may be provided by the local-dev environment. It is
+ * invoked only after a failed fetch OR a failed response-body read; the
+ * recovery implementation is responsible for allowing only eligible errors.
+ * In production the action supplies no recovery transport.
+ */
+export type FetchRecovery = (
+  url: string,
+  init: RequestInit,
+  cause: unknown,
+) => Promise<Response>
+
+async function readApiResponse(response: Response): Promise<unknown> {
+  if (response.status >= 300 && response.status < 400) throw new Error('HTTP redirects are blocked')
+  if (!response.ok) throw new Error(`HTTP GET returned status ${response.status}`)
+  const mime = response.headers.get('content-type') || ''
+  if (!mime.toLowerCase().includes('json')) throw new Error('API response must be JSON')
+  return readLimitedJson(response)
+}
+
 export async function executeSteps(
   steps: ExecutableStep[],
   fetchImpl: typeof fetch = fetch,
+  recoverFetch?: FetchRecovery,
 ): Promise<Execution> {
   const start = Date.now()
   const result: StepExecution[] = []
@@ -92,16 +113,18 @@ export async function executeSteps(
         const remaining = Math.min(8_000, Math.max(1, MAX_MS - (Date.now() - start)))
         // fetch's redirect mode manual is essential: the allowlist must not
         // be bypassed via Location pointing to private networks or other hosts.
-        const response = await fetchImpl(url.toString(), {
+        const options: RequestInit = {
           method: 'GET', redirect: 'manual',
           signal: AbortSignal.timeout(remaining),
           headers: { Accept: 'application/json' },
-        })
-        if (response.status >= 300 && response.status < 400) throw new Error('HTTP redirects are blocked')
-        if (!response.ok) throw new Error(`HTTP GET returned status ${response.status}`)
-        const mime = response.headers.get('content-type') || ''
-        if (!mime.toLowerCase().includes('json')) throw new Error('API response must be JSON')
-        output = await readLimitedJson(response)
+        }
+        try {
+          // Both fetch() and response.body reads can fail in local workerd.
+          output = await readApiResponse(await fetchImpl(url.toString(), options))
+        } catch (cause) {
+          if (!recoverFetch) throw cause
+          output = await readApiResponse(await recoverFetch(url.toString(), options, cause))
+        }
       } else if (step.data.type === 'json_transform') {
         if (typeof config.field !== 'string' || !/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(config.field) || config.field.length > 120)
           throw new Error('Invalid JSON field selector')
